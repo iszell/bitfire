@@ -1,22 +1,30 @@
 .detect_sid
 		sei
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$00
 		sta $d015
+}
 		lda #$ff
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		cmp $d012
+} else {
+		cmp $ff1d
+}
 		bne *-3
 
 		lda #$ff
-		sta $d412
-		sta $d40e
-		sta $d40f
+		sta BITFIRE_SID+$12
+		sta BITFIRE_SID+$0e
+		sta BITFIRE_SID+$0f
 		lda #$20
-		sta $d412
-		lda $d41b
+		sta BITFIRE_SID+$12
+		lda BITFIRE_SID+$1b
 		eor #$01
 		and #$01
 		ora link_chip_types	;0 = old, 1 = new sid
 		sta link_chip_types
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 .detect_cia
 		;lda $d011
 		;bmi *-3
@@ -63,3 +71,4 @@
 
 		lda #$37
 		sta $01
+}

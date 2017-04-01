@@ -7,15 +7,25 @@
 		* = bitfire_install_
 		!bin "../bitfire/installer",,2
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		* = $0900
+} else {
+		* = $1100
+}
+
 .init
 		;install loader
 		jsr bitfire_install_
 
 		;reset stack shits
 		sei
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$35
 		sta $01
+} else {
+		sta $ff3f
+}
 		ldx #$ff
 		txs
 

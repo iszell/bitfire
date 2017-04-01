@@ -20,9 +20,13 @@
 		;sta link_music_addr + 1
 
 		sei
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$35
 		sta $01
-
+} else {
+		sta $ff3f
+}
 		;vsync
 		;bit $d011
 		;bpl *-3
@@ -31,6 +35,7 @@
 
 		ldx #<link_player
 		lda #>link_player
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 !if BITFIRE_FRAMEWORK_MUSIC_NMI = 1 {
 		stx $fffa
 		sta $fffb
@@ -72,13 +77,29 @@
 		sta $d019
 		sta $d01a
 }
-                cli
+} else {
+		stx $fffe
+		sta $ffff
+
+		lda #2			;raster irq
+		sta $ff0a
+		lda #$cc
+		sta $ff0b
+		lda $ff09
+		sta $ff09
+}
+
+        cli
 
 		;load first part
                 jsr link_load_next_raw
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		dec $01
+}
 		jsr link_decomp
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		inc $01
+}
 		;keep demo in sync. $20 frames for loading + $20 extra frames to compensate for jitter in loading times
 		+wait_frame_count $40
 		;lda link_frame_count+0

@@ -49,14 +49,23 @@ link_player
 		pha
 		txa
 		pha
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		inc $01				;should be save with $01 == $34/$35, except when music is @ >= $e000
 !if BITFIRE_FRAMEWORK_MUSIC_NMI = 1 {
 		lda $dd0d
 } else {
 		dec $d019
 }
+} else {
+		lda $ff09
+		sta $ff09
+}
+
 		jsr link_music_play
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		dec $01
+}
 		pla
 		tax
 		pla
@@ -86,9 +95,13 @@ link_load_next_double
 link_load_next_raw_decomp
 		jsr link_load_next_raw
 link_decomp_under_io
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		dec $01				;bank out IO
+}
 		jsr link_decomp			;depack
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		inc $01				;bank in again
+}
 		rts
 }
 

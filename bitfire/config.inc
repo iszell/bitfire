@@ -1,3 +1,11 @@
+;Options for platform selection
+BITFIRE_C64   = 64
+BITFIRE_PLUS4 = 16
+
+BITFIRE_PLATFORM = BITFIRE_PLUS4
+
+BITFIRE_SID 	= $fd40
+
 ;options for resident part
 BITFIRE_RESIDENT_ADDR		= $0200
 BITFIRE_ZP_ADDR			= $04

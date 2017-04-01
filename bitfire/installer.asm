@@ -14,10 +14,15 @@
 		* = BITFIRE_INSTALLER_ADDR
 		!src "loader_acme.inc"
 .init_inst
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$37
 		sta $01
 		lda #$00
 		sta $d015
+} else {
+		lda $ff3e
+}
 		sta .iec_units
 
 		lda #8
@@ -131,6 +136,7 @@
 }
 }
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 .l1		lda $d012
 .l2		cmp $d012
 		beq .l2
@@ -157,6 +163,7 @@
 		sta bitfire_ntsc_fix2 + 2
 		sta bitfire_ntsc_fix3 + 2
 		sta bitfire_ntsc_fix4 + 2
+}
 .nontsc
 		lda #$3f			;drop atn to signal end of transfer
 		sta $dd02
