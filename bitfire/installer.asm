@@ -21,7 +21,7 @@
 		lda #$00
 		sta $d015
 } else {
-		lda $ff3e
+		sta $ff3e
 }
 		sta .iec_units
 
