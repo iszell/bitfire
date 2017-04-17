@@ -10,7 +10,7 @@
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		* = $0900
 } else {
-		* = $1100
+		* = $1000
 }
 
 .init

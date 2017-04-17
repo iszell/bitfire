@@ -1,10 +1,14 @@
-;Options for platform selection
+;Platform selection
 BITFIRE_C64   = 64
 BITFIRE_PLUS4 = 16
 
 BITFIRE_PLATFORM = BITFIRE_PLUS4
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+BITFIRE_SID 	= $d400
+} else {
 BITFIRE_SID 	= $fd40
+}
 
 ;options for resident part
 BITFIRE_RESIDENT_ADDR		= $0200
@@ -27,7 +31,7 @@ BITFIRE_AUTODETECT		= 1		;Autodetect CIA + SID and store the results in the resi
 BITFIRE_WORLD_DOMINATION	= 1		;Soon to come :-D
 
 ;options for installer
-BITFIRE_INSTALLER_ADDR		= $1000
+BITFIRE_INSTALLER_ADDR		= $1100
 BITFIRE_RESIDENT_AUTOINST	= 1		;Set this to zero if you want to do the install of the resident part on your own, but why would you want to do so anyway? :-D
 
 ;options for drivecode
