@@ -71,10 +71,12 @@ ColorRam = $1800
 	sta $ff14
 
 	ldx #0
+-   lda #$70
 	sta ColorRam,x
 	sta ColorRam+$100,x
 	sta ColorRam+$200,x
 	sta ColorRam+$300,x
+	lda #$01
 	sta ColorRam+$400,x
 	sta ColorRam+$500,x
 	sta ColorRam+$600,x
