@@ -112,6 +112,7 @@ bitfire_send_byte_
 
 		ldx #$07			;do 8 turns, as the last turn sets $dd02 at least back to $1f or $3f this is enough to get the idle signal on first pollblock, but not EOF yet (but we load one block minimum, right? So things are healed after the first get_byte call that sets back $dd02 to $3f in any case.)
 		sta .filenum			;save value
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$1f			;start value
 .bit_loop
 		lsr .filenum			;fetch next bit from filenumber and waste cycles
@@ -127,6 +128,29 @@ bitfire_send_byte_
 		bpl .bit_loop			;last bit?
 						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
 						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
+} else {
+		lda #%11001001						  ;ANT/CLK drive Off, DATA drive On
+.bit_loop
+		lsr .filenum
+		bcc +
+		and #%11111110
++
+		eor #%00000011						  ;DATA/CLK drive changed
+		sta $01
+		ora #%00000001
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		dex
+		bpl .bit_loop
+}
 		rts
 
 !if BITFIRE_DECOMP = 1 {
@@ -153,9 +177,18 @@ bitfire_loadraw_
 ;		rts				;just run into pollblock code again that will then jump to .poll_end and rts
 }
 .pollblock
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda $dd00			;bit 6 is always set if not ready or idle/EOF so no problem with just an ASL
+} else {
+		lda $01
+}
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		bmi .poll_end			;block ready?
+} else {
+		bpl .poll_start
+		jmp .poll_end
+}
 .poll_start
 		lda #$60			;set rts
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits are used for barrier delta, first two bist are cleared/unusable. Also sets an rts in receive loop
@@ -198,6 +231,8 @@ bitfire_loadraw_
 		lda #$a2			;ldx #imm
 .bitfire_ack_
 		sta .blockpos
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		ldy #$37
 .get_one_byte
 bitfire_ntsc_fix1				;ntsc fix will be done on those labels by installer (opcode $xxxx-$37,y)
@@ -227,6 +262,62 @@ bitfire_ntsc_fix4
 		and $dd00-$37,y			;can be omitted? 2 cycles overhead
 		stx $dd02
 .nibble		ora #$00			;also adc could be used, or sbc -nibble?
+} else {
+		ldy #%11001100
+.get_one_byte
+		lda $01
+		sty $01
+		lsr
+		lsr
+		and #%00110000
+		sta .store_recb_byte
+		nop
+		nop
+		nop
+		nop
+		nop
+		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+		ldx #%11001000
+
+		lda $01
+		stx $01
+		and #%11000000
+		ora .store_recb_byte
+		lsr
+		lsr
+		sta .store_recb_byte
+		nop
+		nop
+		nop
+		nop
+		nop
+		dec .blockpos+1			;waste 6 cycles and decrement
+
+		lda $01
+		sty $01
+		and #%11000000
+		ora .store_recb_byte
+		lsr
+		lsr
+		sta .store_recb_byte
+		nop
+		nop
+		nop
+		nop
+		nop
+
+		lda $01
+		stx $01
+		and #%11000000
+		ora .store_recb_byte
+		nop
+		nop
+		nop
+		nop
+		nop
+		clc
+}
+
 .blockpos	ldx #$00
 .bitfire_block_addr_hi = * + 2
 bitfire_load_addr_lo = * + 1
@@ -239,6 +330,14 @@ bitfire_load_addr_lo = * + 1
 		bcc .pollblock
 }
 		rts
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+} else {
+.store_recb_byte
+		brk
+}
+
+
 
 !if BITFIRE_DECOMP = 1 {
 ;---------------------------------------------------------------------------------
@@ -487,7 +586,11 @@ bitfire_lz_sector_ptr3	= * + 1
 }
 
 .lz_poll
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		bit $dd00
+} else {
+		bit $01
+}
 		bvs .lz_skip_end
 
 		stx .lz_match			;save x, lz_match is available at that moment

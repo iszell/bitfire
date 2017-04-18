@@ -22,11 +22,16 @@
 		sta $d015
 } else {
 		sta $ff3e
+		lda #$00
 }
 		sta .iec_units
 
 		lda #8
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		sta $ba
+} else {
+		sta $ae
+}
 		;jmp do_install
 
 		ldx #4
@@ -34,11 +39,19 @@
 		jsr .open_w_15
 		bmi +
 		inc .iec_units
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda $ba
+} else {
+		lda $ae
+}
 		sta .my_drive
 		jsr .unlisten
 +
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		inc $ba
+} else {
+		inc $ae
+}
 		dex
 		bne -
 .iec_units = * + 1
@@ -49,51 +62,111 @@
 -
 		lda .pebcak,x
 		beq .init_inst
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		sta $07c0,x
+} else {
+		sta $0fc0,x
+}
 		inx
 		bne -
 .do_install
 .my_drive = * + 1
 		lda #$08
-		sta $ba
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+		sta $ba
+} else {
+		sta $ae
+}
 		;install bootloader with fast m-w and onetime loader-init
 		jsr .install_bootstrap
+
 		sei
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$c3
 		sta $dd00
 
 		lda #$3f
 		sta $dd02
+} else {
+		lda #%11001000				  ;ATN/CLK/DATA drive Off (Cas. MTR Off)
+		sta $01
+
+		lda #%00001111				  ;ATN/CLK/DATA drive OUTPUT, CLK / DATA in INPUT (Cas. MTR OUTPUT, Cas. RD INPUT)
+		sta $00
+
+}
 
 .cnt = * + 1
 		lda #(>.drivecode_size) + 1
 
-                bit $dd00		;wait until drive bootloader is active
-                bmi *-3
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+		bit $dd00		;wait until drive bootloader is active
+		bmi *-3
 
 		lda #$37
 		sta $dd02
+} else {
+		bit $01				;wait until drive bootloader is active
+		bmi *-2
+
+		lda #%11001100				  ;ATN drive On
+		sta $01
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+}
 
 -
 .dc_data = * + 1
 		lda .drivecode_start
-                sec
-                ror
+		sec
+		ror
 		sta .dc_src
-                lda #$2f
-.s_loop
-                and #$2f                        ;clear bit 4 and 0..2 and waste some cycles here
-                adc #$00                        ;on carry set, clear bit 4, else keep
-		eor #$30
-                ora #$0f
 
-                sta $dd02
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+		lda #$2f
+.s_loop
+		and #$2f						;clear bit 4 and 0..2 and waste some cycles here
+		adc #$00						;on carry set, clear bit 4, else keep
+		eor #$30
+		ora #$0f
+
+		sta $dd02
 		pha				;make NTSC machines happy
 		pla
-                lsr .dc_src
-                bne .s_loop
+		lsr .dc_src
+		bne .s_loop
+} else {
+		lda #%11001001				  ;ATN drive Off, DATA drive On
+.s_loop
+		and #%11001001				  ;CLK drive Off
+		bcc +
+		ora #%00000010				  ;If sended bit = 1: CLK drive On
++
+		sta $01
+		eor #%00000001				  ;DATA drive flip
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		lsr .dc_src
+		bne .s_loop
+}
 
 		inc .dc_data
 		bne +
@@ -106,8 +179,13 @@
 		cmp #>.drivecode_end
 		bne -
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$37			;raise atn to signal end of transfer
 		sta $dd02
+} else {
+		lda #%11001100				  ;ATN drive On, CLK/DATA drive Off
+		sta $01
+}
 
 !if (BITFIRE_RESIDENT_AUTOINST != 0) {
 !if (bitfire_resident_size) < 256 {
@@ -165,15 +243,23 @@
 		sta bitfire_ntsc_fix4 + 2
 }
 .nontsc
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$3f			;drop atn to signal end of transfer
 		sta $dd02
+} else {
+		lda #%11001000						  ;ATN/CLK/DATA drive Off
+		sta $01
+}
 
 !if BITFIRE_AUTODETECT = 1 {
 		!src "detect.asm"
 }
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$7f
 		sta $dd0d
 		lda $dd0d
+}
 
 		;wait until floppy is ready
 		;wait for drive to initialize XXX TODO maybe wait for special signal on $dd00?
@@ -188,13 +274,24 @@
 ;		bmi *-3
 ;		dex
 ;		bpl -
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 -
 		lda $dd00
 		bpl -
+} else {
+-
+		lda $01
+		bpl -
+}
 		rts
 
 .open_w_15
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda $ba
+} else {
+		lda $ae
+}
 		jsr .listen
 		lda #$00
 		sta $90
