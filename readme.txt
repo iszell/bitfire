@@ -10,6 +10,7 @@ The packer supports output of both, sfx as well as levelpacked files suitable fo
 
 --overlap					Enable the old style packing with files overlapping at the end, default with sfx
 --sfx startaddr					Spit out an executable for c64
+--plus4						Create plus/4 executable
 --bitfire					Produce a bitfire compatible output with special encoding scheme and zero overlap
 --level						Spit out file in old doynamite format
 --full-dict					Reference also the stuff that is cut off the file when using --cut-input-addr. The referenced part must be in c64-memory however to make this work upon depacking. It saves a few bytes on splitted files, as more matches can be found
@@ -267,4 +268,8 @@ With the old packing scheme, Packed files have a safety margin at the end, means
 Building
 --------
 
-The .asm files need ACME 0.94 or newer, i didn't focus much on that, as i always use the current version from SVN. At this time 0.95.5. So if anyone tries to compile this with the medieval version 0.93, it will fail, sorry :-)
+The .asm files need ACME 0.94 or newer, I didn't focus much on that, as I always use the current version from SVN. At this time 0.95.5. So if anyone tries to compile this with the medieval version 0.93, it will fail, sorry :-) 
+
+Latest ACME versions:
+- SourceForge: https://sourceforge.net/projects/acme-crossass/
+- GitHub: https://github.com/meonwax/acme
