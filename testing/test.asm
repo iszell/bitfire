@@ -34,25 +34,68 @@ ColorRam = $0400
 	lda $dd00
 	and #%11111100
 	ora #<(($c000 - RamBank)/1024/16)
-	sta $dd00	; RAM Bank selection
+	sta $dd00		; RAM Bank selection
 	lda #<( ((ColorRam & $3fff)/1024)*16 + (Bitmap & $3fff)/1024)
-	sta $d018	; char screen + charset
+	sta $d018		; char screen + charset
 	lda #$08
-	sta $d016	; multicolor + 40 Cols
+	sta $d016		; multicolor + 40 Cols
 	lda $d011
 	and #%1011111	; ECM
-	ora #$20    	; BMM
+	ora #$20		; BMM
 	sta $d011
 
 	ldx #0
 	lda #$01
--	sta ColorRam,x
+-   sta ColorRam,x
 	sta ColorRam+$100,x
 	sta ColorRam+$200,x
 	sta ColorRam+$300,x
 	inx
 	bne -
 
+	;raster irq
+	
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
+	lda $dc0d
+	lda $dd0d
+
+	lda #$01
+	sta $d01a
+
+	lda $d011
+	and #$7f
+	sta $d011
+
+	lda #$32
+	sta $d012
+
+	lda #<irq
+	sta $fffe
+	lda #>irq
+	sta $ffff
+
+	cli
+	jmp cont
+
+irq:
+	pha
+
+	inc $d020
+	lda #$fb
+-
+	cmp $d012
+	bne -
+
+	dec $d020
+
+	lsr $d019
+	pla
+	rti
+
+cont:
+				
 } else {
 
 ColorRam = $1800
@@ -65,13 +108,14 @@ ColorRam = $1800
 	lda $ff12
 	and #%11000011
 	ora #<(Bitmap/1024)
-    sta $ff12
+	sta $ff12
 		
 	lda #>(ColorRam)
 	sta $ff14
 
 	ldx #0
--   lda #$70
+-
+	lda #$70
 	sta ColorRam,x
 	sta ColorRam+$100,x
 	sta ColorRam+$200,x
@@ -84,13 +128,47 @@ ColorRam = $1800
 	inx
 	bne -
 
+	lda #$02
+	sta $ff0a
+	lda #$03
+	sta $ff0b
+	
+	inc $ff09
+	
+	lda #<irq
+	sta $fffe
+	lda #>irq
+	sta $ffff
+	
+	cli
+	jmp cont:
+	
+irq:
+	pha
+	
+	inc $ff19
+	
+	lda #$cc
+-
+	cmp $ff1d
+	bne -
+	
+	dec $ff19
+	
+	inc $ff09
+	
+	pla
+	rti
+	
+cont:
 }
 
 loop:
 	ldy #$20
 	sty l+2
 	lda #$f0
-l:	sta Bitmap,x
+l:
+	sta Bitmap,x
 	inx
 	bne l
 	inc l+2
