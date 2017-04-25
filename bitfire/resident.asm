@@ -31,7 +31,7 @@ link_frame_count
 		!word 0
 }
 
-!if BITFIRE_NMI_GAPS = 1 & BITFIRE_DEBUG = 0 {
+!if BITFIRE_NMI_GAPS = 1 & BITFIRE_DEBUG = 0 & BITFIRE_PLATFORM = BITFIRE_C64 {
 !align 255,2
 		nop
 		nop
@@ -138,16 +138,8 @@ bitfire_send_byte_
 		eor #%00000011						  ;DATA/CLK drive changed
 		sta $01
 		ora #%00000001
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
+                jsr     .bfwait24               ;24 cycles
+                jsr     .bfwait12               ;12 cycles
 		dex
 		bpl .bit_loop
 }
@@ -263,58 +255,45 @@ bitfire_ntsc_fix4
 		stx $dd02
 .nibble		ora #$00			;also adc could be used, or sbc -nibble?
 } else {
+                jsr .bfwait12                   ;+12 cycles
 		ldy #%11001100
 .get_one_byte
 		lda $01
 		sty $01
 		lsr
 		lsr
-		and #%00110000
-		sta .store_recb_byte
-		nop
-		nop
-		nop
-		nop
-		nop
+		sta .store_recb_b1+1
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
 		ldx #%11001000
+                jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		stx $01
 		and #%11000000
-		ora .store_recb_byte
+.store_recb_b1  ora #$00
 		lsr
 		lsr
-		sta .store_recb_byte
-		nop
-		nop
-		nop
-		nop
-		nop
+		sta .store_recb_b2+1
 		dec .blockpos+1			;waste 6 cycles and decrement
+		sta .store_recb_b2+1
+		sta .store_recb_b2+1
+                ;jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		sty $01
 		and #%11000000
-		ora .store_recb_byte
+.store_recb_b2	ora #$00
 		lsr
 		lsr
-		sta .store_recb_byte
-		nop
-		nop
-		nop
-		nop
-		nop
+		sta .store_recb_b3+1
+                ;jsr .bfwait14                   ;2 bits read, +14 cycles
+                jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		stx $01
 		and #%11000000
-		ora .store_recb_byte
-		nop
-		nop
-		nop
-		nop
-		nop
+.store_recb_b3	ora #$00
+                jsr .bfwait12                   ;2 bits read, +12 cycles
 		clc
 }
 
@@ -331,10 +310,20 @@ bitfire_load_addr_lo = * + 1
 }
 		rts
 
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-} else {
-.store_recb_byte
-		brk
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+.bfwait24       jsr .bfwait12
+;.bfwait24       nop
+;.bfwait22       nop
+;.bfwait20       nop
+;.bfwait18       nop
+;.bfwait16       nop
+;.bfwait14       nop
+.bfwait12       rts                     ;JSR + RTS: 12 cycles
+;.bfwait19       nop
+;.bfwait17       nop
+;.bfwait15       bit $01
+;                rts
+
 }
 
 

@@ -16,7 +16,7 @@ BITFIRE_ZP_ADDR			= $04
 
 ;Framework options, certain features can be switched on/off separatedly
 BITFIRE_FRAMEWORK		= 1		;Enable/Disable whole framework
-BITFIRE_FRAMEWORK_BASEIRQ	= 1		;Include a base irq handler into the framework
+BITFIRE_FRAMEWORK_BASEIRQ	= 0		;Include a base irq handler into the framework
 BITFIRE_FRAMEWORK_FRAMECOUNTER	= 1		;Include framecounter handling
 BITFIRE_FRAMEWORK_MUSIC_NMI	= 1		;should base irq run in NMI or raster IRQ?
 
