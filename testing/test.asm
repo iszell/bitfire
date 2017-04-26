@@ -178,11 +178,15 @@ l:
 
 	lda #0
 	jsr bitfire_loadraw_
-
+	jsr link_load_next_raw
+	jsr link_load_next_raw
+	jsr link_load_next_raw
 	jsr link_load_next_raw
 
 	jsr link_load_next_comp
-
+	jsr link_load_next_comp
+	jsr link_load_next_comp
+	jsr link_load_next_comp
 	jsr link_load_next_comp
 
 	jmp loop
