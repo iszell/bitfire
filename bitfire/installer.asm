@@ -207,6 +207,10 @@
 -
 		lda .res_start,x
 		sta BITFIRE_RESIDENT_ADDR,x
+	!if bitfire_resident_size > $200 {
+		lda .res_start+$100,x
+		sta BITFIRE_RESIDENT_ADDR+$100,x
+	}
 		lda .res_start + ((bitfire_resident_size) - $100),x
 		sta BITFIRE_RESIDENT_ADDR + ((bitfire_resident_size) - $100),x
 		dex
