@@ -13,6 +13,13 @@
 .lz_dst		= BITFIRE_ZP_ADDR + 2
 .lz_match	= BITFIRE_ZP_ADDR + 4
 
+;value of x after .get_one_byte
+!if BITFIRE_PLATFORM = BITFIRE_C64 {
+	.get_one_byte_x = $3f	
+} else {
+	.get_one_byte_x = %11001000
+}
+
 !if BITFIRE_DEBUG = 1 {
 bitfire_debug_filenum	= BITFIRE_ZP_ADDR + 6
 }
@@ -147,9 +154,9 @@ bitfire_send_byte_
 
 !if BITFIRE_DECOMP = 1 {
 .bitfire_set_ptrs
-		sta bitfire_lz_sector_ptr1 - $3f,x
-		sta bitfire_lz_sector_ptr2 - $3f,x
-		sta bitfire_lz_sector_ptr3 - $3f,x
+		sta bitfire_lz_sector_ptr1 - .get_one_byte_x,x
+		sta bitfire_lz_sector_ptr2 - .get_one_byte_x,x
+		sta bitfire_lz_sector_ptr3 - .get_one_byte_x,x
 		rts
 }
 
@@ -233,7 +240,7 @@ bitfire_ntsc_fix1				;ntsc fix will be done on those labels by installer (opcode
 		lsr
 		lsr
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		ldx #$3f
+		ldx #.get_one_byte_x	;$3f
 
 bitfire_ntsc_fix2
 		ora $dd00-$37,y			;can be omitted? 3 cycles overhead
@@ -264,36 +271,39 @@ bitfire_ntsc_fix4
 		lsr
 		sta .store_recb_b1+1
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		ldx #%11001000
-                jsr .bfwait12                   ;2 bits read, +12 cycles
+		ldx #.get_one_byte_x			;%11001000
+		jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		stx $01
 		and #%11000000
-.store_recb_b1  ora #$00
+.store_recb_b1
+		ora #$00
 		lsr
 		lsr
 		sta .store_recb_b2+1
 		dec .blockpos+1			;waste 6 cycles and decrement
 		sta .store_recb_b2+1
 		sta .store_recb_b2+1
-                ;jsr .bfwait12                   ;2 bits read, +12 cycles
+		;jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		sty $01
 		and #%11000000
-.store_recb_b2	ora #$00
+.store_recb_b2
+		ora #$00
 		lsr
 		lsr
 		sta .store_recb_b3+1
-                ;jsr .bfwait14                   ;2 bits read, +14 cycles
-                jsr .bfwait12                   ;2 bits read, +12 cycles
+		;jsr .bfwait14                   ;2 bits read, +14 cycles
+		jsr .bfwait12                   ;2 bits read, +12 cycles
 
 		lda $01
 		stx $01
 		and #%11000000
-.store_recb_b3	ora #$00
-                jsr .bfwait12                   ;2 bits read, +12 cycles
+.store_recb_b3
+		ora #$00
+		jsr .bfwait12                   ;2 bits read, +12 cycles
 		clc
 }
 

@@ -167,6 +167,7 @@ loop:
 	ldy #$20
 	sty l+2
 	lda #$f0
+	ldx #0
 l:
 	sta Bitmap,x
 	inx
@@ -175,9 +176,15 @@ l:
 	dey
 	bne l
 
-	lda #$00
+	lda #0
 	jsr bitfire_loadraw_
+
 	jsr link_load_next_raw
+
+	jsr link_load_next_comp
+
+	jsr link_load_next_comp
+
 	jmp loop
 
 	* = BITFIRE_INSTALLER_ADDR
