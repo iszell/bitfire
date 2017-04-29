@@ -92,9 +92,12 @@ link_music_addr = * + 1
 }
 		;this is the music play hook for all parts that they should call instead of for e.g. jsr $1003, it has a variable music location to be called
 		;and advances the frame counter if needed
-link_decomp	= bitfire_decomp_
 
 !if BITFIRE_DECOMP = 1 {
+
+link_decomp	= bitfire_decomp_
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 ;		;expect $01 to be $35
 link_load_next_double
 		;loads a splitted file, first part up to $d000 second part under IO
@@ -102,16 +105,12 @@ link_load_next_double
 link_load_next_raw_decomp
 		jsr link_load_next_raw
 link_decomp_under_io
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		dec $01				;bank out IO
-}
 		jsr link_decomp			;depack
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		inc $01				;bank in again
-}
 		rts
 }
-
+}
 }
 
 bitfire_send_byte_

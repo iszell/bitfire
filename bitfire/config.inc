@@ -31,7 +31,7 @@ BITFIRE_AUTODETECT              = 1     ;Autodetect CIA + SID and store the resu
 BITFIRE_WORLD_DOMINATION        = 1     ;Soon to come :-D
 
 ;options for installer
-BITFIRE_INSTALLER_ADDR          = $1100
+BITFIRE_INSTALLER_ADDR          = $1200
 BITFIRE_RESIDENT_AUTOINST       = 1     ;Set this to zero if you want to do the install of the resident part on your own, but why would you want to do so anyway? :-D
 
 ;options for drivecode
