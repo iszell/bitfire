@@ -2,11 +2,11 @@ ACME = acme
 ACMEOPT = -f cbm
 D64W = ../bitfire/d64write
 LZ = ../bitfire/bitnax
+INST = ../bitfire/installer
 
 all: test.d64
 
-test.d64: test.asm bitmap1.lz bitmap2.lz bitmap3.lz bitmap4.lz bitmap5.lz Makefile ../bitfire/config.inc
-	make -B -C ../bitfire all
+test.d64: $(D64W) $(INST) test.asm bitmap1.lz bitmap2.lz bitmap3.lz bitmap4.lz bitmap5.lz Makefile ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -r test.lst -o test.prg test.asm
 	$(D64W) -c test.d64 -h hello -i world --side 1 \
 			-b bitmap1.prg \
@@ -21,8 +21,21 @@ test.d64: test.asm bitmap1.lz bitmap2.lz bitmap3.lz bitmap4.lz bitmap5.lz Makefi
 			-b bitmap5.lz \
 			-s test.prg
 
-bitmap%.lz : bitmap%.prg
+
+$(D64W) : 
+	make -C ../bitfire d64write
+
+$(LZ) : 
+	make -C ../bitfire bitnax
+
+$(INST) : force
+	make -C ../bitfire installer
+
+bitmap%.lz : bitmap%.prg $(LZ)
 	$(LZ) --bitfire -o $@ $<
+
+force:
+	@true
 
 clean:
 	rm test.prg test.d64 *.lz || true

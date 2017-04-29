@@ -20,6 +20,9 @@ main:
 
 	sei
 
+	lda #$55
+	jsr clear+2
+
 Bitmap = $2000
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -162,11 +165,82 @@ irq:
 	
 cont:
 }
-
+	
+	lda #0
+	jsr bitfire_loadraw_
+	ldx #1
+	jsr chksum
+	
+	jsr link_load_next_raw
+	ldx #2
+	jsr chksum
+	
+	jsr link_load_next_raw
+	ldx #3
+	jsr chksum
+	
+	jsr link_load_next_raw
+	ldx #4
+	jsr chksum
+	
+	jsr link_load_next_raw
+	ldx #5
+	jsr chksum
+	
 loop:
+	jsr clear
+
+	lda #0
+	jsr bitfire_loadraw_
+	ldx #1
+	jsr compare
+
+	jsr link_load_next_raw
+	ldx #2
+	jsr compare
+
+	jsr link_load_next_raw
+	ldx #3
+	jsr compare
+
+	jsr link_load_next_raw
+	ldx #4
+	jsr compare
+
+	jsr link_load_next_raw
+	ldx #5
+	jsr compare
+
+!if BITFIRE_DECOMP = 1 {
+	
+	jsr link_load_next_comp
+	ldx #1
+	jsr compare
+	
+	jsr link_load_next_comp
+	ldx #2
+	jsr compare
+	
+	jsr link_load_next_comp
+	ldx #3
+	jsr compare
+	
+	jsr link_load_next_comp
+	ldx #4
+	jsr compare
+	
+	jsr link_load_next_comp
+	ldx #5
+	jsr compare
+
+}
+
+	jmp loop
+
+clear:
+	lda #$f0
 	ldy #$20
 	sty l+2
-	lda #$f0
 	ldx #0
 l:
 	sta Bitmap,x
@@ -175,21 +249,109 @@ l:
 	inc l+2
 	dey
 	bne l
+	rts
+
+
+chksum:
+p = $fe
+	lda #0
+	sta p
+	lda #$20
+	sta p+1
+k:
+	ldy #0
+	clc
+	lda (p),y
+	iny
+	adc (p),y
+	iny
+	eor (p),y
+	iny
+	adc (p),y
+	iny
+	eor (p),y
+	iny
+	adc (p),y
+	iny
+	eor (p),y
+	iny
+	adc (p),y
+	pha
+	lda p
+	sta .q
+	lda p+1
+	ora #$40
+	sta .q+1
+	pla
+.q = *+1
+	sta $6000,x
+	
+	clc
+	lda p
+	adc #8
+	sta p
+	tay
+	lda p+1
+	adc #0
+	sta p+1
+	cpy #$40
+	bne k
+	cmp #$3f
+	bne k
+	rts
+
+compare:
+	txa
+	pha
+	ldx #0
+	jsr chksum
+	pla
+	tay
 
 	lda #0
-	jsr bitfire_loadraw_
-	jsr link_load_next_raw
-	jsr link_load_next_raw
-	jsr link_load_next_raw
-	jsr link_load_next_raw
+	sta p
+	lda #$60
+	sta p+1
+.cl
+    ldx #0
+	lda (p,x)
+	eor (p),y
+	beq +
 
-	jsr link_load_next_comp
-	jsr link_load_next_comp
-	jsr link_load_next_comp
-	jsr link_load_next_comp
-	jsr link_load_next_comp
+	lda p
+	sta .cq
+	lda p+1
+	and #$1f
+	lsr
+	ror .cq
+	lsr
+	ror .cq
+	lsr
+	ror .cq
+!if BITFIRE_PLATFORM = BITFIRE_C64 {
+	ora #>ColorRam
+} else {
+	ora	#(>ColorRam)+4
+}
+	sta .cq+1
+	lda #$02
+.cq = *+1
+	sta $1800,x
 
-	jmp loop
++	clc
+	lda p
+	adc #8
+	sta p
+	tax
+	lda p+1
+	adc #0
+	sta p+1
+	cpx #$40
+	bne .cl
+	cmp #$7f
+	bne .cl
+	rts
+
 
 	* = BITFIRE_INSTALLER_ADDR
 !bin "../bitfire/installer",,2
