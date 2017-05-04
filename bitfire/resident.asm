@@ -64,8 +64,7 @@ link_player
 		dec $d019
 }
 } else {
-		lda $ff09
-		sta $ff09
+		dec $ff09
 }
 
 		jsr link_music_play
@@ -261,7 +260,7 @@ bitfire_ntsc_fix4
 		stx $dd02
 .nibble		ora #$00			;also adc could be used, or sbc -nibble?
 } else {
-                jsr .bfwait12                   ;+12 cycles
+		jsr .bfwait12                   ;+12 cycles
 		ldy #%11001100
 .get_one_byte
 		lda $01
@@ -271,7 +270,11 @@ bitfire_ntsc_fix4
 		sta .store_recb_b1+1
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
 		ldx #.get_one_byte_x			;%11001000
-		jsr .bfwait12                   ;2 bits read, +12 cycles
+
+		pha						;+11 cycles
+		pla
+		nop
+		nop
 
 		lda $01
 		stx $01
@@ -282,9 +285,9 @@ bitfire_ntsc_fix4
 		lsr
 		sta .store_recb_b2+1
 		dec .blockpos+1			;waste 6 cycles and decrement
-		sta .store_recb_b2+1
-		sta .store_recb_b2+1
-		;jsr .bfwait12                   ;2 bits read, +12 cycles
+
+		pha						;+7 cycles
+		pla
 
 		lda $01
 		sty $01
@@ -294,15 +297,20 @@ bitfire_ntsc_fix4
 		lsr
 		lsr
 		sta .store_recb_b3+1
-		;jsr .bfwait14                   ;2 bits read, +14 cycles
-		jsr .bfwait12                   ;2 bits read, +12 cycles
+
+		pha						;+11 cycles
+		pla
+		nop
+		nop
 
 		lda $01
 		stx $01
 		and #%11000000
 .store_recb_b3
 		ora #$00
-		jsr .bfwait12                   ;2 bits read, +12 cycles
+
+		jsr .bfwait12			;+12 cycles
+
 		clc
 }
 
@@ -321,17 +329,7 @@ bitfire_load_addr_lo = * + 1
 
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
 .bfwait24       jsr .bfwait12
-;.bfwait24       nop
-;.bfwait22       nop
-;.bfwait20       nop
-;.bfwait18       nop
-;.bfwait16       nop
-;.bfwait14       nop
-.bfwait12       rts                     ;JSR + RTS: 12 cycles
-;.bfwait19       nop
-;.bfwait17       nop
-;.bfwait15       bit $01
-;                rts
+.bfwait12       rts				;JSR + RTS: 12 cycles
 
 }
 
