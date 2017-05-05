@@ -62,12 +62,12 @@ clock receivers.
 Binary Releases:
 ^^^^^^^^^^^^^^^^
 
-Bitfire+4 2017.05.04:
+Bitfire+4 2017.05.05:
  - Resident part: $200-$3ff
  - Zero page: $04-$08
  - 2bit ATN double clock receiver
  - load raw, load+decomp, decomp routines
  - Basic irq handler for music, frame counter, partial SID detection
  - Win32 and Plus/4 binaries, ACME cross-assembler, include files and macros
- - Simple code example and Win32 build script.
-
+ - Simple code example and Win32 build script
+ 
