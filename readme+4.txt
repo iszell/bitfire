@@ -64,7 +64,7 @@ Binary Releases:
 
 Bitfire+4 2017.05.05:
  - Resident part: $200-$3ff
- - Zero page: $04-$08
+ - Zero page: $04-$09
  - 2bit ATN double clock receiver
  - load raw, load+decomp, decomp routines
  - Basic irq handler for music, frame counter, partial SID detection
