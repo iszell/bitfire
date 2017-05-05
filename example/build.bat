@@ -4,7 +4,7 @@
 ..\bitfire\bitnax.exe --bitfire -o bitmap3.lz bitmap3.prg
 ..\bitfire\bitnax.exe --bitfire -o bitmap4.lz bitmap4.prg
 ..\bitfire\bitnax.exe --bitfire -o bitmap5.lz bitmap5.prg
-:: Compiling the test code and creating an sfx
+:: Compiling main.asm
 ..\acme\acme.exe -f cbm -o main.prg main.asm
 :: Creating the disk and copying main.prg to it as a normal file
 ..\bitfire\d64write.exe -c disk.d64 -h hello -i world -s main.prg
