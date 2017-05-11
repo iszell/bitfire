@@ -6,6 +6,7 @@ bitfire_request_disc_
 		;ldx #$07
 		jsr bitfire_send_byte_
 
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		;bit $dd00
 		;bmi *-3
 
@@ -18,3 +19,17 @@ bitfire_request_disc_
                 bpl *-3
 .waste
 		rts
+} else {
+		;bit $01
+		;bmi *-2
+
+		;give floppy time to enter busy mode, and set lines to input
+		lda #%11001000
+		sta $01
+
+		;wait until floppy is idle again
+                bit $01
+                bpl *-2
+.waste
+		rts
+}
