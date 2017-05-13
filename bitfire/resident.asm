@@ -20,6 +20,12 @@
 	.get_one_byte_x = %11001000
 }
 
+!if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
+	PLUS4_DRIVE = 1541
+} else {
+	PLUS4_DRIVE = 1551
+}
+
 !if BITFIRE_DEBUG = 1 {
 bitfire_debug_filenum	= BITFIRE_ZP_ADDR + 6
 }
@@ -134,6 +140,7 @@ bitfire_send_byte_
 						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
 						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
 } else {
+!if (PLUS4_DRIVE = 1541) {
 		lda #%11001001						  ;ANT/CLK drive Off, DATA drive On
 .bit_loop
 		lsr .filenum
@@ -147,6 +154,8 @@ bitfire_send_byte_
                 jsr     .bfwait12               ;12 cycles
 		dex
 		bpl .bit_loop
+} else {
+}
 }
 		rts
 
@@ -176,17 +185,37 @@ bitfire_loadraw_
 .pollblock
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda $dd00			;bit 6 is always set if not ready or idle/EOF so no problem with just an ASL
-} else {
-		lda $01
-}
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		bmi .poll_end			;block ready?
 } else {
+  !if (PLUS4_DRIVE = 1541) {
+		lda $01
+		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bpl .poll_start
 		jmp .poll_end
+  } else {
+  }
 }
+
 .poll_start
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+} else {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+		lda	$ff13
+		and	#%00000010		;Single clock already selected?
+		sta	.bfspeed+1		;Store speed
+		bne	.poll_early_ok
+		lda	#%00000010
+		php
+		sei				;2
+		ora	$ff13			;4
+		sta	$ff13			;4 Single Clock selected
+		plp				;4 +14 clocks jitter
+.poll_early_ok	lda	#%00011111		;Dirty Hack: Datasette RD line output and drive LOW
+		sta	$00			;B4 always 0 after read port
+  }
+}
 		lda #$60			;set rts
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits are used for barrier delta, first two bist are cleared/unusable. Also sets an rts in receive loop
 
@@ -260,6 +289,37 @@ bitfire_ntsc_fix4
 		stx $dd02
 .nibble		ora #$00			;also adc could be used, or sbc -nibble?
 } else {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+		ldy	#%11001100
+.get_one_byte
+		lda	$01
+		sty	$01
+		lsr
+		lsr
+		stx	.blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+		ldx	#.get_one_byte_x			;%11001000
+		;nop
+
+		eor	$01
+		stx	$01
+		lsr
+		lsr
+		dec	.blockpos+1			;waste 6 cycles and decrement
+		;nop
+
+		eor	$01
+		sty	$01
+		lsr
+		lsr
+		nop
+		nop
+		eor	#%00001110			;Flip back the wrong bits
+
+		eor	$01
+		stx	$01
+		clc
+  }
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) {
 		jsr .bfwait12                   ;+12 cycles
 		ldy #%11001100
 .get_one_byte
@@ -279,8 +339,7 @@ bitfire_ntsc_fix4
 		lda $01
 		stx $01
 		and #%11000000
-.store_recb_b1
-		ora #$00
+.store_recb_b1	ora #$00
 		lsr
 		lsr
 		sta .store_recb_b2+1
@@ -292,8 +351,7 @@ bitfire_ntsc_fix4
 		lda $01
 		sty $01
 		and #%11000000
-.store_recb_b2
-		ora #$00
+.store_recb_b2	ora #$00
 		lsr
 		lsr
 		sta .store_recb_b3+1
@@ -306,12 +364,12 @@ bitfire_ntsc_fix4
 		lda $01
 		stx $01
 		and #%11000000
-.store_recb_b3
-		ora #$00
+.store_recb_b3	ora #$00
 
 		jsr .bfwait12			;+12 cycles
 
 		clc
+  }
 }
 
 .blockpos	ldx #$00
@@ -321,6 +379,22 @@ bitfire_load_addr_lo = * + 1
 		bne .get_one_byte		;74 cycles per loop
 
 !if >* != >.get_one_byte { !error "getloop code crosses page!" }
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+} else {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+.bfspeed	lda	#$00			;Stored speed?
+		bne	.poll_over_ok		;If Single Clock selected, not changed back
+		lda	#%11111101
+		php
+		sei				;2
+		and	$ff13			;4
+		sta	$ff13			;4 Single Clock selected
+		plp				;4 +14 clocks jitter, Carry not touched this routine
+.poll_over_ok	lda	#%00001111		;Datasette RD line switch to input
+		sta	$00
+  }
+}
 .poll_end
 !if BITFIRE_DECOMP = 0 {
 		bcc .pollblock
