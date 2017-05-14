@@ -14,6 +14,7 @@ typedef enum {
 
 #define VERIFY_COST_MODEL  0
 #define DEFAULT_LENGTHS    "3/6/8/10:4/7/10/13"
+#define BITFIRE_WITH_MOFF  0
 
 #define OUTPUT_NONE	0
 #define OUTPUT_SFX	2
@@ -147,7 +148,7 @@ typedef struct {
 	unsigned output_type;
 	unsigned end_pos;
 	unsigned header_size;
-	signed opt_addr;
+	signed load_addr;
 	signed depack_to;
 	unsigned cut_addr_first;
 	unsigned cut_addr_last;
@@ -749,7 +750,11 @@ void encode_match_8class (lz_context *ctx, signed offset, unsigned length) {
 	unsigned offset_prefix;
 	const offset_length_t *offset_class;
 	signed length_bit;
+#if BITFIRE_WITH_MOFF
+	const unsigned prefix_order[] = {0,1,2,3,7,6,5,4};
+#else
 	const unsigned prefix_order[] = {1,2,0,3,4,5,6,7};
+#endif
 
 	if(ctx->show_trace) {
 		printf("match(-%u, %u bytes)\n",offset,length);
@@ -934,6 +939,8 @@ void render_output(lz_context *ctx) {
 
 	bool update = true;
 
+	bool sentinel_needed = false;
+
 	ctx->margin = 0;
 	ctx->end_pos = 0;
 
@@ -955,8 +962,8 @@ void render_output(lz_context *ctx) {
 			if(stream_pos > dest_pos && stream_pos - dest_pos > ctx->margin) {
 				ctx->margin = stream_pos - dest_pos;
 			}
-			//only allow unencoded last literal if zero overlap and if opt_addr && depack_to is yet unset (--load-addr/--dpeack-to not set)
-			if(ctx->opt_addr < 0 && ctx->depack_to < 0 && !ctx->overlap && stream_pos > dest_pos) {
+			//only allow unencoded last literal if zero overlap and if load_addr && depack_to is yet unset (--load-addr/--dpeack-to not set)
+			if(ctx->load_addr < 0 && ctx->depack_to < 0 && !ctx->overlap && stream_pos > dest_pos) {
 				if(update) {
 					//last sane position, now switch to literal output only
 					ctx->end_pos = cursor;
@@ -968,6 +975,7 @@ void render_output(lz_context *ctx) {
 		if(length > 0) {
 
 			unsigned offset = info[cursor].match_offset;
+			sentinel_needed = false;
 
 			if(!implicit_match) {
 				if(ctx->show_trace) printf ("type_bit ");
@@ -989,6 +997,7 @@ void render_output(lz_context *ctx) {
 			implicit_match = false;
 			last_match = cursor + length;
 		} else {
+			sentinel_needed = true;
 			length = -length;
 
 			if(ctx->show_trace) printf ("type_bit ");
@@ -1065,28 +1074,33 @@ void render_output(lz_context *ctx) {
 	// The sentinel is a maximum-length match
 	if(ctx->show_trace) printf("EOF\n");
 
-	// We encode the EOF whenever we do compress with overlap or to a alternative location where in place depacking can't happen
-	if(ctx->overlap || ctx->opt_addr >=0 || ctx->depack_to >= 0) {
+	// We encode the EOF whenever we do compress with overlap or to an alternative location where in place depacking can't happen
+	if(ctx->overlap || ctx->load_addr >= 0 || ctx->depack_to >= 0) {
 		// In that case take end of data as end_pos to disable the end_pos check by letting it hit too late during decoding
+		// XXX TODO can still be omitted if last action was a match
 		ctx->end_pos = ctx->output_end;
-		if(!implicit_match) {
-			if(ctx->show_trace) printf ("type_bit ");
-			output_bit(ctx, 0);
-			if(ctx->show_trace) printf ("\n");
-		}
 
-//		printf("%d bits saved\n", saved);
-
-		if (ctx->output_type == OUTPUT_BITFIRE) {
-			length_bit = _log2(RUN_LIMIT);
-			output_bit(ctx, --length_bit >= 0);
-
-			while(length_bit >= 0) {
-				output_bit(ctx, RUN_LIMIT >> length_bit);
-				output_bit(ctx, --length_bit < 0);
+		// only add a sentinael if last action was a literal
+		if (sentinel_needed) {
+			if(!implicit_match) {
+				if(ctx->show_trace) printf ("type_bit ");
+				output_bit(ctx, 0);
+				if(ctx->show_trace) printf ("\n");
 			}
-		} else {
-			encode_match(ctx, 1, RUN_LIMIT+3);
+
+//			printf("%d bits saved\n", saved);
+
+			if (ctx->output_type == OUTPUT_BITFIRE) {
+				length_bit = _log2(RUN_LIMIT);
+				output_bit(ctx, --length_bit >= 0);
+
+				while(length_bit >= 0) {
+					output_bit(ctx, RUN_LIMIT >> length_bit);
+					output_bit(ctx, --length_bit < 0);
+				}
+			} else {
+				encode_match(ctx, 1, RUN_LIMIT+3);
+			}
 		}
 	}
 
@@ -1149,7 +1163,7 @@ bool parse_offset_lengths(lz_context* ctx, const char *text) {
 		&cfg_long_offset[2].bits, &cfg_long_offset[3].bits) != 8) {
 		return false;
 	}
-	if (ctx->output_type == OUTPUT_BITFIRE) {
+	if (ctx->output_type == OUTPUT_BITFIRE && !BITFIRE_WITH_MOFF) {
 		prepare_offset_lengths_8class(cfg_short_offset, 4);
 		prepare_offset_lengths_8class(cfg_long_offset, 4);
 	} else {
@@ -1632,7 +1646,7 @@ int crunch(lz_context* ctx) {
 	}
 
 	// Emit margin only when necessary
-	if (ctx->margin > 0 && ctx->opt_addr < 0 && ctx->depack_to < 0 && ctx->output_type != OUTPUT_SFX) {
+	if (ctx->margin > 0 && ctx->load_addr < 0 && ctx->depack_to < 0 && ctx->output_type != OUTPUT_SFX) {
 		printf("overlap: %d bytes\n", ctx->margin);
 	}
 
@@ -1643,19 +1657,19 @@ int crunch(lz_context* ctx) {
 	// Print more info and calc addresses
 	if(ctx->output_type == OUTPUT_LEVEL || ctx->output_type == OUTPUT_BITFIRE) {
 		//find perfect loading address
-		if (ctx->opt_addr < 0) ctx->opt_addr = ctx->output_end - packed_size + ctx->margin;
-		if (ctx->relocate_to >= 0 && ctx->opt_addr >= 0) {
-			ctx->opt_addr = ctx->opt_addr + (ctx->relocate_to - ctx->output_begin);
+		if (ctx->load_addr < 0) ctx->load_addr = ctx->output_end - packed_size + ctx->margin;
+		if (ctx->relocate_to >= 0 && ctx->load_addr >= 0) {
+			ctx->load_addr = ctx->load_addr + (ctx->relocate_to - ctx->output_begin);
 			ctx->end_pos = ctx->end_pos + (ctx->relocate_to - ctx->output_begin);
 		}
 
 		printf("source load: $%04x-$%04x\n", ctx->output_begin, ctx->output_end);
-		printf("packed load: $%04x-$%04x\n", ctx->opt_addr, ctx->opt_addr + packed_size);
+		printf("packed load: $%04x-$%04x\n", ctx->load_addr, ctx->load_addr + packed_size);
 
 		// Fix optimal load address to file
 		fseek(ctx->dst_file, 0, SEEK_SET);
-		fputc(ctx->opt_addr & 0xff, ctx->dst_file);
-		fputc(ctx->opt_addr >> 8, ctx->dst_file);
+		fputc(ctx->load_addr & 0xff, ctx->dst_file);
+		fputc(ctx->load_addr >> 8, ctx->dst_file);
 		// Add depack address
 		if (ctx->depack_to >=0) {
 			fputc(ctx->depack_to & 0xff, ctx->dst_file);
@@ -1676,8 +1690,8 @@ int crunch(lz_context* ctx) {
 		}
 
 		// Do some sanity checks
-		if (ctx->opt_addr + packed_size + ctx->margin < ctx->output_end) {
-			if (ctx->opt_addr + packed_size + ctx->margin >= ctx->output_begin) {
+		if (ctx->load_addr + packed_size + ctx->margin < ctx->output_end) {
+			if (ctx->load_addr + packed_size + ctx->margin >= ctx->output_begin) {
 				fprintf(stderr,"WARNING: packed file location collides with depacked data location\n");
 				if (ctx->exit_on_warn) exit(EXIT_FAILURE);
 			}
@@ -1686,7 +1700,7 @@ int crunch(lz_context* ctx) {
 			fprintf(stderr,"WARNING: compressed file is bigger than original\n");
 			if (ctx->exit_on_warn) exit(EXIT_FAILURE);
 		}
-		if (!ctx->plus4  && ((ctx->opt_addr > 0xd000 && ctx->opt_addr < 0xe000) || (ctx->opt_addr + packed_size > 0xd000 && ctx->opt_addr + packed_size < 0xe000))) {
+		if (!ctx->plus4  && ((ctx->load_addr > 0xd000 && ctx->load_addr < 0xe000) || (ctx->load_addr + packed_size > 0xd000 && ctx->load_addr + packed_size < 0xe000))) {
 			fprintf(stderr,"WARNING: resulting file has parts in IO-range $d000-$dfff\n");
 			if (ctx->exit_on_warn) exit(EXIT_FAILURE);
 		}
@@ -1782,7 +1796,7 @@ main(int argc, char *argv[]) {
 	ctx.header_size = 0;
 	ctx.checksum = false;
 	ctx.exit_on_warn = false;
-	ctx.opt_addr = -1;
+	ctx.load_addr = -1;
 	ctx.depack_to = -1;
 	ctx.start_addr = -1;
 	ctx.relocate_to = -1;
@@ -1801,7 +1815,7 @@ main(int argc, char *argv[]) {
 		} else if(!strcmp(*argv, "--plus4")) {
 			ctx.plus4 = true;
 		} else if(argc >= 2 && !strcmp(*argv, "--load-addr")) {
-			ctx.opt_addr = read_number(*++argv);
+			ctx.load_addr = read_number(*++argv);
 			--argc;
 		} else if(argc >= 2 && !strcmp(*argv, "--depack-to")) {
 			ctx.depack_to = read_number(*++argv);
@@ -1905,7 +1919,7 @@ main(int argc, char *argv[]) {
 		if (ctx.depack_to >= 0) {
 			fatal("option --depack-to not supported with --sfx");
 		}
-		if (ctx.opt_addr >= 0) {
+		if (ctx.load_addr >= 0) {
 			fatal("option --load-addr not supported with --sfx");
 		}
 		if (ctx.relocate_to >= 0) {

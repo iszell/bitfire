@@ -12,27 +12,17 @@ bitfire_reset_drive_
 		bit $01
 		bpl *-2
 }
+
 		;upload data
 -
-                ;wait for data ready
-                lda .upload_start,y
-		;only send 8 bits, no $dd02 sanitize
-		;ldx #$07
-                jsr bitfire_send_byte_
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		lda #$3f
-		sta $dd02
-} else {
-		lda #%11001000
-		sta $01
-		jsr .waste
-}
+        lda .upload_start,y
+        jsr bitfire_send_byte_
 		;waste cycles to be sure drive keeps up
-		jsr .waste
 		dey
-                bpl -
+        bpl -
 .waste
 		rts
+
 .upload_start
 !pseudopc $0108 {
 .code_start
@@ -43,7 +33,7 @@ bitfire_reset_drive_
 }
 .code_size = .code_end - .code_start;
 
-                !byte >(.code_size - 1), <(.code_size - 1)
+        !byte >(.code_size - 1), <(.code_size - 1)
 		!byte >(.code_end - 1),  <(.code_end - 1)
 		!byte BITFIRE_UPLOAD
 .upload_end
