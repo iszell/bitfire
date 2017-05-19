@@ -197,18 +197,9 @@ bitfire_loadraw_
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 } else {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
-		lda	$ff13
-		and	#%00000010		;Single clock already selected?
-		sta	.bfspeed+1		;Store speed
-		bne	.poll_early_ok
-		lda	#%00000010
-		php
-		sei				;2
-		ora	$ff13			;4
-		sta	$ff13			;4 Single Clock selected
-		plp				;4 +14 clocks jitter
-.poll_early_ok	lda	#%00011111		;Dirty Hack: Datasette RD line output and drive LOW
-		sta	$00			;B4 always 0 after read port
+
+  		jsr .bfsingleclock
+
   }
 }
 		lda #$60			;set rts
@@ -371,19 +362,10 @@ bitfire_load_addr_lo = * + 1
 
 !if >* != >.get_one_byte { !error "getloop code crosses page!" }
 
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-} else {
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
-.bfspeed	lda	#$00			;Stored speed?
-		bne	.poll_over_ok		;If Single Clock selected, not changed back
-		lda	#%11111101
-		php
-		sei				;2
-		and	$ff13			;4
-		sta	$ff13			;4 Single Clock selected
-		plp				;4 +14 clocks jitter, Carry not touched this routine
-.poll_over_ok	lda	#%00001111		;Datasette RD line switch to input
-		sta	$00
+  		lda	#%00001111		;Datasette RD line switch to input
+  		jsr .bfdblclock
   }
 }
 .poll_end
@@ -391,6 +373,31 @@ bitfire_load_addr_lo = * + 1
 		bcc .pollblock
 }
 		rts
+
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+
+.bfsingleclock
+		lda $ff13
+		and #%00000010		;Single clock already selected?
+		eor #%00000010
+		sta .bfspeed+1		;Store speed
+		lda #%00011111		;Dirty Hack: Datasette RD line output and drive LOW
+.bfdblclock
+		sta $00				;B4 always 0 after read port
+.bfspeed
+		lda #0
+		beq .clk_early_ok
+		php
+bitfire_plus4_sei:
+		sei				;2
+		eor $ff13		;4
+		sta $ff13		;4 Single Clock selected
+		plp				;4 +14 clocks jitter
+.clk_early_ok	
+		rts
+  }
+}
 
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
 .bfwait24       jsr .bfwait12
