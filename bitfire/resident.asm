@@ -27,6 +27,10 @@
 	PLUS4_DRIVE = 1551
 }
 
+!ifndef BF_PLUS4_BINCOMP {
+	BF_PLUS4_BINCOMP = 0
+}
+
 !if BITFIRE_DEBUG = 1 {
 bitfire_debug_filenum	= BITFIRE_ZP_ADDR + 7
 }
@@ -187,20 +191,26 @@ bitfire_loadraw_
 		lda $01
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bpl .poll_start
-		jmp .poll_end
+
+!if BITFIRE_DECOMP = 0 {
+		bcc .pollblock
+}
+		rts
+
   } else {
   }
 }
 
 .poll_start
 
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-} else {
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
-
-  		jsr .bfsingleclock
-
-  }
+		jsr .bfsingleclock
+  } else {
+    !if BF_PLUS4_BINCOMP>0 and BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC {
+    	top .get_one_byte+3
+    }
+  }	
 }
 		lda #$60			;set rts
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits of payload possible, first two bist are cleared/unusable. Also sets an rts in receive loop
@@ -230,6 +240,28 @@ bitfire_loadraw_
 		sta .barrier
 }
 
+!macro plus4_clock_switch_routine ~single, ~double, ~sei_addr {
+single = *
+		lda $ff13
+		and #%00000010		;Single clock already selected?
+		eor #%00000010
+		sta .bfspeed+1		;Store speed
+		lda #%00011111		;Dirty Hack: Datasette RD line output and drive LOW
+double = *
+		sta $00				;B4 always 0 after read port
+.bfspeed
+		lda #0
+		beq .clk_early_ok
+		php
+sei_addr = *
+		sei				;2
+		eor $ff13		;4
+		sta $ff13		;4 Single Clock selected
+		plp				;4 +14 clocks jitter
+.clk_early_ok	
+		rts
+}
+
 .bitfire_load_block
 		jsr .get_one_byte		;fetch blockaddr hi
 		sta .bitfire_block_addr_hi	;where to place the block?
@@ -240,9 +272,29 @@ bitfire_loadraw_
 .bitfire_ack_
 		sta .blockpos
 
+!if BF_PLUS4_BINCOMP>0 {
+  !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+    !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+
+		jmp .contgetbyte
+		nop
+		nop
+		
+.get_one_byte
+		jmp .get_one_byte_
+
+		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei
+
+.contgetbyte
+    }
+  }
+}
+
+
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		ldy #$37
 .get_one_byte
+.get_one_byte_
 		lda $dd00-$37,y
 		sty $dd02
 		lsr
@@ -269,7 +321,12 @@ bitfire_loadraw_
 } else {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
 		ldy	#%11001100
+    !if BF_PLUS4_BINCOMP>0 {
+.get_one_byte_
+    } else {
 .get_one_byte
+.get_one_byte_
+    }
 		lda	$01
 		sty	$01
 		lsr
@@ -301,6 +358,7 @@ bitfire_loadraw_
 		jsr .bfwait12                   ;+12 cycles
 		ldy #%11001100
 .get_one_byte
+.get_one_byte_
 		lda $01
 		sty $01
 		lsr
@@ -311,8 +369,13 @@ bitfire_loadraw_
 
 		pha						;+11 cycles
 		pla
+!if BF_PLUS4_BINCOMP>0 {
+		dop #0	
+		dop #0	
+} else {
 		nop
 		nop
+}
 
 		lda $01
 		stx $01
@@ -337,7 +400,11 @@ bitfire_loadraw_
 		pha						;+11 cycles
 		pla
 		nop
+!if BF_PLUS4_BINCOMP>0 {
+		dop #0	
+} else {
 		nop
+}
 
 		lda $01
 		stx $01
@@ -356,7 +423,7 @@ bitfire_load_addr_lo = * + 1
 		sta $b00b,x
 		;could also use sta ($xx),y and waste one cycle less on first lda $dd00 - $37,y
 		;y should be lowbyte? or work on iny/dey?
-		bne .get_one_byte		;78 cycles per loop
+		bne .get_one_byte_		;78 cycles per loop
 
 		;XXX TODO to enable loading of partial start sectors: x can be set on prembale, as well as initial load_addr_lo and blocksize? but we would need to receive with incrementing x?
 
@@ -374,29 +441,23 @@ bitfire_load_addr_lo = * + 1
 }
 		rts
 
-!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
-  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+!if BF_PLUS4_BINCOMP = 0 {
+  !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+    !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
 
-.bfsingleclock
-		lda $ff13
-		and #%00000010		;Single clock already selected?
-		eor #%00000010
-		sta .bfspeed+1		;Store speed
-		lda #%00011111		;Dirty Hack: Datasette RD line output and drive LOW
-.bfdblclock
-		sta $00				;B4 always 0 after read port
-.bfspeed
-		lda #0
-		beq .clk_early_ok
-		php
-bitfire_plus4_sei:
-		sei				;2
-		eor $ff13		;4
-		sta $ff13		;4 Single Clock selected
-		plp				;4 +14 clocks jitter
-.clk_early_ok	
-		rts
+		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei
+
+    }
   }
+}
+
+!if (BF_PLUS4_BINCOMP>0 and BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) {
+
+		nop
+		nop
+		nop
+		nop
+		nop
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
