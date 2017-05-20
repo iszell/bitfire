@@ -4,7 +4,9 @@ CFLAGS = -Os -Wall
 LDLIBS =
 CC = gcc
 
-all: bitnax d64write installer
+ACME_DEFS = -DBITFIRE_PLATFORM=$(PLATFORM) -DBITFIRE_PLUS4_MODE=$(PLUS4_MODE) -DBF_PLUS4_BINCOMP=$(PLUS4_BINCOMP)
+
+all: bitnax d64write installer.prg
 
 d64write: d64write.c *.h
 	@echo "Buidling d64write..."
@@ -14,7 +16,7 @@ bitnax: lz.c
 	@echo "Buidling bitnax..."
 	@${CC} $< -o $@ ${CFLAGS}
 
-installer: installer.asm drivecode.asm request_disc.asm resident.asm detect.asm config.inc Makefile resident_minimal_zp.asm
+installer.prg: installer.asm drivecode.asm request_disc.asm resident.asm detect.asm config.inc Makefile resident_minimal_zp.asm
 	@echo -n "Buidling resident part ->"
 	@$(ACME) $(ACMEOPT) -o resident -l resident_labels.txt resident.asm
 	@printf " Size: $$%04x\n" $$((`wc -c < resident` - 2))
@@ -36,8 +38,83 @@ installer: installer.asm drivecode.asm request_disc.asm resident.asm detect.asm 
 	@cat loader_acme.inc | sed "s/\(.*\)/\.var \\1/" >> loader_kickass.inc
 	@#echo "}" >> loader_kickass.inc
 	@echo "Buidling installer..."
-	@$(ACME) $(ACMEOPT) -o installer installer.asm
+	@$(ACME) $(ACMEOPT) -o installer.prg installer.asm
 	@rm resident_labels.txt
 
+
+resident_p: resident.asm config.inc Makefile resident_minimal_zp.asm
+	@echo -n "Buidling resident part ->"
+	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o resident -l resident_labels.txt resident.asm
+	@printf " Size: $$%04x\n" $$((`wc -c < resident` - 2))
+	@echo "Creating loader_acme.inc..."
+	@#fetch all global labels for resident part
+	@grep "bitfire_*" resident_labels.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/\= / \= /" > loader_acme.inc
+	@grep "link_*" resident_labels.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/\= / \= /" >> loader_acme.inc
+	@#fetch all config labels
+	@grep "BITFIRE_*" resident_labels.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/\= / \= /" >> loader_acme.inc
+	@echo "Creating loader_c6510.inc..."
+	@#convert to c6510 format (add const, wipe out underscores and add prefix with .)
+	@echo "if def BITFIRE.ISINCLUDED == 0" > loader_c6510.inc
+	@cat loader_acme.inc | sed "s/\(.*\)/const \\1/" >> loader_c6510.inc
+	@echo "endif" >> loader_c6510.inc
+	@echo ".importonce" > loader_kickass.inc
+	@#cat loader_acme.inc | grep "bitfire" | sed "s/bitfire/\.var bitfire/" >> loader_kickass.inc
+	@#cat loader_acme.inc | grep "BITFIRE" | sed "s/BITFIRE/\.var BITFIRE/" >> loader_kickass.inc
+	@echo "Creating loader_kickass.inc..."
+	@cat loader_acme.inc | sed "s/\(.*\)/\.var \\1/" >> loader_kickass.inc
+	@#echo "}" >> loader_kickass.inc
+
+installer_p: installer.asm drivecode.asm request_disc.asm resident_p detect.asm config.inc Makefile resident_minimal_zp.asm
+	@echo "Buidling installer..."
+	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o installer_p installer.asm
+	@rm resident_labels.txt
+
+
+installer_c64.prg: Makefile resident.asm installer.asm config.inc
+	@make -C . PLATFORM=64 PLUS4_MODE=0 PLUS4_BINCOMP=0 installer_p
+	@mv installer_p $@
+	@mv loader_acme.inc 		loader_acme_c64.inc 
+	@mv loader_c6510.inc 	loader_c6510_c64.inc 
+	@mv loader_kickass.inc 	loader_kickass_c64.inc 
+
+installer_plus4_41sc.prg: Makefile resident.asm installer.asm config.inc
+	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=0 installer_p
+	@mv installer_p $@
+	@mv loader_acme.inc 	loader_acme_plus4_41sc.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_41sc.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_41sc.inc 
+
+installer_plus4_41dc.prg: Makefile resident.asm installer.asm config.inc
+	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=0 installer_p
+	@mv installer_p $@
+	@mv loader_acme.inc 	loader_acme_plus4_41dc.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_41dc.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_41dc.inc 
+
+installer_plus4_41sc_swap.prg: Makefile resident.asm installer.asm config.inc
+	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=1 resident_p
+	@mv resident resident_p4_41dc 
+	@mv loader_acme.inc loader_acme_p4dc.inc
+	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=1 resident_p
+	@mv resident resident_p4_41sc
+	@mv loader_acme.inc loader_acme_p4sc.inc
+	@diff -U 0 loader_acme_p4sc.inc loader_acme_p4dc.inc || true
+	#@python cmp.py resident_p4_41sc resident_p4_41dc
+	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=2 installer_p
+	@mv installer_p $@
+	@grep -v BITFIRE_PLUS4_MODE loader_acme.inc > loader_acme_plus4.inc 
+	@grep -v BITFIRE_PLUS4_MODE loader_c6510.inc > loader_c6510_plus4.inc 
+	@grep -v BITFIRE_PLUS4_MODE loader_kickass.inc > loader_kickass_plus4.inc
+	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc
+
+installer_plus4_41dc_swap.prg: installer_plus4_41sc_swap.prg
+	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=2 installer_p
+	@mv installer_p $@
+	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc
+
+
+installers: installer_c64.prg installer_plus4_41sc.prg installer_plus4_41dc.prg installer_plus4_41sc_swap.prg installer_plus4_41dc_swap.prg
+	@echo "All installers are compiled!"
+
 clean:
-	@-rm bitnax d64write installer loader_acme.inc loader_c6510.inc loader_kickass.inc resident
+	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_p4_41*c

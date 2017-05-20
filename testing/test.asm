@@ -1,5 +1,5 @@
-
-!src "../bitfire/loader_acme.inc"
+!src "../bitfire/loader_acme_plus4.inc"
+;!src "../bitfire/loader_acme_c64.inc"
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 	* = $801
@@ -85,13 +85,17 @@ ColorRam = $0400
 irq:
 	pha
 
-	inc $d020
+	lda $d020
+	pha
+
 	lda #$fb
 -
+	inc $d020
 	cmp $d012
 	bne -
 
-	dec $d020
+	pla
+	sta $d020
 
 	lsr $d019
 	pla
@@ -149,14 +153,17 @@ ColorRam = $1800
 irq:
 	pha
 	
-	inc $ff19
-	
+	lda $ff19
+	pha
+
 	lda #$cc
 -
+	inc $ff19
 	cmp $ff1d
 	bne -
 	
-	dec $ff19
+	pla
+	sta $ff19
 	
 	inc $ff09
 	
@@ -233,6 +240,13 @@ loop:
 	ldx #5
 	jsr compare
 
+}
+
+!ifdef bitfire_plus4_swap_receiver {
+	jsr bitfire_plus4_swap_receiver
+	lda $ff19
+	eor #$ee
+	sta $ff19
 }
 
 	jmp loop
@@ -354,5 +368,13 @@ compare:
 
 
 	* = BITFIRE_INSTALLER_ADDR
-!bin "../bitfire/installer",,2
 
+!if BITFIRE_PLATFORM = BITFIRE_PLUS4 {
+
+!bin "../bitfire/installer_plus4_41dc_swap.prg",,2
+
+} else {
+
+!bin "../bitfire/installer_c64.prg",,2
+	
+}
