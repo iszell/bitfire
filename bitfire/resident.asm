@@ -64,6 +64,12 @@ link_frame_count
 !if BITFIRE_FRAMEWORK_BASEIRQ = 1 {
 link_player
 		pha
+!if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+		lda $ff13
+		pha
+		and #%11111101
+		sta $ff13
+}
 		tya
 		pha
 		txa
@@ -88,6 +94,10 @@ link_player
 		tax
 		pla
 		tay
+!if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+		pla
+		sta $ff13
+}
 		pla
 		rti
 }
@@ -437,7 +447,9 @@ bitfire_load_addr_lo = * + 1
 }
 .poll_end
 !if BITFIRE_DECOMP = 0 {
-		bcc .pollblock
+		;bcc .pollblock
+		bcs *+5
+		jmp .pollblock
 }
 		rts
 
@@ -465,7 +477,6 @@ bitfire_load_addr_lo = * + 1
 .bfwait12       rts				;JSR + RTS: 12 cycles
 
 }
-
 
 
 !if BITFIRE_DECOMP = 1 {
@@ -753,6 +764,43 @@ link_sid_type			;%00000001	;bit set = new, bit cleared = old
 link_cia1_type			;%00000010
 link_cia2_type			;%00000100
 		!byte $00
+}
+
+!if BF_PLUS4_BINCOMP = 2 {
+bitfire_plus4_swap_receiver:
+
+!if BITFIRE_DECOMP = 1 {
+.dest = BITFIRE_RESIDENT_ADDR + 138 	;this is based on binary comparison results, don't touch
+.swap_data_len = 223-138+1
+} else {
+.dest = BITFIRE_RESIDENT_ADDR + 122 	;this is based on binary comparison results, don't touch
+.swap_data_len = 212-122+1
+}
+
+	ldx #.swap_data_len
+-
+	lda .dest-1,x
+	pha
+	lda .swap_data-1,x
+	sta .dest-1,x
+	pla
+	sta .swap_data-1,x
+	dex
+	bne -
+	
+	lda .poll_start
+	eor # $20 xor $0c	;jsr vs. nop
+	sta .poll_start
+	rts
+	
+.swap_data:
+
+!if BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC {
+!bin "resident_p4_41dc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+} else {
+!bin "resident_p4_41sc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+}
+
 }
 
 bitfire_resident_size = * - BITFIRE_RESIDENT_ADDR
