@@ -1,5 +1,5 @@
 
-!src "../bitfire/loader_acme.inc"
+!src "../bitfire/loader_acme_plus4.inc"
 
 	* = $1001
 	!word +,0
@@ -107,5 +107,5 @@ l:
 	rts
 
 	* = BITFIRE_INSTALLER_ADDR
-!bin "../bitfire/installer",,2	;including without loading address
+!bin "../bitfire/installer_plus4_41dc_swap.prg",,2	;including without loading address
 
