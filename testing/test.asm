@@ -1,5 +1,8 @@
-!src "../bitfire/loader_acme_plus4.inc"
-;!src "../bitfire/loader_acme_c64.inc"
+!if TEST_PLUS4 = 1 {
+  !src "../bitfire/loader_acme_plus4.inc"
+} else {
+  !src "../bitfire/loader_acme_c64.inc"	
+}
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 	* = $801
@@ -197,6 +200,34 @@ cont:
 loop:
 	jsr clear
 
+	jsr test_raw
+	jsr swap_receivers
+	jsr test_lz_next
+	jsr swap_receivers
+	jsr test_raw_next
+	jsr swap_receivers
+	jsr test_lz_next
+	jsr swap_receivers
+	jsr test_raw_next
+	jsr swap_receivers
+
+	jmp loop
+
+swap_receivers:
+
+!ifdef bitfire_plus4_swap_receiver {
+	jsr bitfire_plus4_swap_receiver
+	lda $ff19
+	eor #$ee
+	sta $ff19
+}
+	rts
+
+test_raw_next:
+	lda #BITFIRE_LOAD_NEXT
+	jmp test_raw+2
+
+test_raw:
 	lda #0
 	jsr bitfire_loadraw_
 	ldx #1
@@ -217,7 +248,9 @@ loop:
 	jsr link_load_next_raw
 	ldx #5
 	jsr compare
+	rts
 
+test_lz_next:
 !if BITFIRE_DECOMP = 1 {
 	
 	jsr link_load_next_comp
@@ -241,15 +274,8 @@ loop:
 	jsr compare
 
 }
+	rts
 
-!ifdef bitfire_plus4_swap_receiver {
-	jsr bitfire_plus4_swap_receiver
-	lda $ff19
-	eor #$ee
-	sta $ff19
-}
-
-	jmp loop
 
 clear:
 	lda #$f0
