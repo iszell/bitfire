@@ -112,10 +112,24 @@ yourself with different settings. The binary release contains all features of th
 loader and it is still small, so you probably won't miss anything if you use it. ;)
 
 The structure of the latest binary release:
+ - acme/
+   - acme.exe: ACME cross-assembler version 0.96.2
  - bitfire/
+   - bitnax.exe: packer based on doynax.
+   - d64write.exe: image writer tool that can copy files to disk image in normal
+       and Bitfire format.
    - installer_plus4_41*c_swap.prg: Two installers for (s)ingle/(d)ouble clock receivers
        and a swap routine to switch between them.
-   - loader_plus4_*.inc: 
+   - loader_plus4_*.inc: include files contating all important routine and memory addresses
+       of the loader.
+   - link_macros_*.inc: useful macros for many popular cross-assemblers
+ - example/
+   - main.asm: simple example demonstrating loader installation, loading raw files and 
+       loading and depacking compressed files.
+   - build.bat: simple build script demostrating how to compress files for Bitfire and
+       how to create dist and how to copy files to dist in normal and bitfire format.
+   - bitmap*.prg: five bitmaps
+
 
 Bitfire+4 2017.05.05:
  - Resident part: $200-$3ff
