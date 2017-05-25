@@ -1,9 +1,9 @@
 Bitfire+4
 ^^^^^^^^^
 
-Credit:
+Credits:
  - Original C64 loader: Bitbreaker/Oxyron
- - Plus/4 port: Bubis/Resource, BSZ/NST
+ - Plus/4 port: Bubis/Resource, BSZ/NST, Krill/Plush (we borrowed some of your ideas ;))
  - Testing: Luca/FIRE, Chronos/ACE, Csaba/New Wave
 
 GitHub:
