@@ -3,9 +3,9 @@
 !cpu 6510
 
 !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
-	PLUS4_DRIVE = 1541
+	BF_DRIVE = 1541
 } else {
-	PLUS4_DRIVE = 1551
+	BF_DRIVE = 1551
 }
 
 !zone installer {
@@ -96,7 +96,7 @@
 		lda #$3f
 		sta $dd02
 } else {
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #%11001000				  ;ATN/CLK/DATA drive Off (Cas. MTR Off)
 		sta $01
 
@@ -128,7 +128,7 @@
 
 .cnt = * + 1
 		lda #(>.drivecode_size) + 1
-!if (PLUS4_DRIVE = 1541) {                  ;===== 1541
+!if (BF_DRIVE = 1541) {                  ;===== 1541
   !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		bit $dd00		;wait until drive bootloader is active
 		bmi *-3
@@ -234,7 +234,7 @@
 		lda #$37			;raise atn to signal end of transfer
 		sta $dd02
 } else {
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #%11001100				  ;ATN drive On, CLK/DATA drive Off
 		sta $01
   } else {						;===== 1551
@@ -317,7 +317,7 @@
 		lda #$3f			;drop atn to signal end of transfer
 		sta $dd02
 } else {
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #%11001000						  ;ATN/CLK/DATA drive Off
 		sta $01
   } else {						;===== 1551
@@ -352,7 +352,7 @@
 		lda $dd00
 		bpl -
 } else {
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 -
 		lda $01
 		bpl -

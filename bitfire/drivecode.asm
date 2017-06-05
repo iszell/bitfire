@@ -62,9 +62,9 @@
 ;-----------------------------------------
 
 !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
-	PLUS4_DRIVE = 1541
+	BF_DRIVE = 1541
 } else {
-	PLUS4_DRIVE = 1551
+	BF_DRIVE = 1551
 }
 
 .STEPPING_SPEED	= $98
@@ -72,7 +72,7 @@
 .drivecode	= $0000
 .bootstrap	= $0700
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 .VIA2_LED_OFF	= $f7
 .VIA2_LED_ON	= $08
 
@@ -119,7 +119,7 @@
 .barrier	= $6e
 .filenum 	= $6f
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 .gcr2ser	= $00		;gcr to serial-port lookuptablea -> from $08-$1f
 .bin2ser	= $80		;binary to serial data
   } else {						;===== 1551
@@ -138,7 +138,7 @@
 .lonibbles	= $0600
 .hinibbles	= $0700
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 .gcr_dec_lo	= $f8c0
 .gcr_dec_hi	= $f8a0
   } else {						;===== 1551
@@ -156,7 +156,7 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 
 .DIR_SECT	= 18
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 BUSY		= $02
 BLOCK_READY	= $08
 IDLE		= $00
@@ -170,7 +170,7 @@ IDLE		= %11111111
 !pseudopc .bootstrap {
 .bootstrap_run
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #$12
 		sta $0a
 		lda #.DIR_SECT
@@ -373,7 +373,7 @@ IDLE		= %11111111
 		;-------------------------------------------------------------------------------------------------------------------------------------------------------------
 .drivecode_
 
-  !if (PLUS4_DRIVE = 1551) {				;===== 1551 only routines
+  !if (BF_DRIVE = 1551) {				;===== 1551 only routines
 
 ;	Combined "Sector Head" / "Sector Data" read routine
 ;	This routine read the GCR stream from disk. Decode
@@ -515,7 +515,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 ;		lda #$00
 ;		sta $1801
 .read_sector_
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		jsr .wait_sync_mark
 		bvc *
 		lda $1c01		;22333334
@@ -641,7 +641,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 ;		jmp .check
 ;.check_back
 ;}
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		jsr .wait_sync_mark
 		bvc *
 		lda $1c01		;22333334
@@ -783,7 +783,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 
 .send_block
 		ldy #$00		;start with 0, we will send 2 or 4 bytes of blockinfo as preamble
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		ldx .preamble_lo
 		lda .bin2ser,x
 		;and #$05
@@ -848,7 +848,7 @@ readdisk_1551	sta	.rd51_markcmp+1
   }
 
 		ldy .blocksize
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		ldx .lonibbles,y
 		nop
 .sendloop				;send the data block
@@ -985,7 +985,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		txa
 
 .preamble_add_byte
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		ldx #$0f
 		sax .preamble_lo,y	;mask out lower 4 bits
 		lsr
@@ -999,7 +999,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		iny
 		rts
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 .wait_sync_mark
 		;XXX TODO maybe first check can be omitted? But this way we are save to not directly fall through next check if we missed the sync. We would read chunk then and possibly still go through the checksum, as it is just a simple 8 bit eor
 ;		lda $1c00		;wait for start of sync
@@ -1019,7 +1019,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 
 
 .turn_disc
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #.VIA2_MOTOR_ON
   } else {						;===== 1551
 		lda	#(.TCPU_LED_OFF | .TCPU_LED_ON)	;%11111111 :)
@@ -1038,7 +1038,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		dec .firstblock
 .drivecode_launch
 		;XXX TODO here it would be possible to preload next block
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda $1c00
 !if BITFIRE_CONFIG_MOTOR_ALWAYS_ON = 0 {
 		and #(.VIA2_LED_OFF & .VIA2_MOTOR_OFF)
@@ -1061,7 +1061,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		cmp #BITFIRE_UPLOAD
 		bne *+5
 		jmp .upload
-  !if (PLUS4_DRIVE = 1551) {				;===== 1551
+  !if (BF_DRIVE = 1551) {				;===== 1551
 		tax
 		lda	$4000		;TCBM input
 		eor	#$ff		;=$FF? == input on plus/4 side?
@@ -1081,7 +1081,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		bcs .turn_disc
 .load_next
 		;XXX TODO send out preloaded sector here if filenum = expected filenum
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #.VIA2_LED_ON | .VIA2_MOTOR_ON
   } else {						;===== 1551
 		lda	#.TCPU_LED_ON
@@ -1189,7 +1189,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ldy .to_track
 
 		ldx #$11		;max sectors on track
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda $1c00
   } else {						;===== 1551
 		lda	$01
@@ -1210,7 +1210,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ora #$20
 ++
 		stx .max_sectors	;store new max sectors
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		sta $1c00		;now set bitrate
 
 		asr #$60		;take four bitrates and shift down
@@ -1239,7 +1239,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		tax
 		beq +			;nothing to step, end
 .step
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda #.STEPPING_SPEED
 		sta $1c05
 .halftrack
@@ -1290,7 +1290,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		jsr .seek
 		jsr .read_sector
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		ldy #$00
 		;decode dir
 -
@@ -1322,7 +1322,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		rts
 
 .motor_on
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		ora $1c00
 		sta $1c00
   } else {						;===== 1551
@@ -1339,7 +1339,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 }
 		rts
 
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 .lock
 -
 		ldx $1800		;still locked?

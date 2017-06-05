@@ -22,9 +22,9 @@
 }
 
 !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
-	PLUS4_DRIVE = 1541
+	BF_DRIVE = 1541
 } else {
-	PLUS4_DRIVE = 1551
+	BF_DRIVE = 1551
 }
 
 !ifndef BF_PLUS4_BINCOMP {
@@ -153,7 +153,7 @@ bitfire_send_byte_
 						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
 						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
 } else {
-  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		sta .filenum			;save value
 		ldx #7
 		lda #%11001001			;ANT/CLK drive Off, DATA drive On
@@ -216,7 +216,7 @@ bitfire_loadraw_
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bmi .poll_end			;block ready?
 } else {
-  !if (PLUS4_DRIVE = 1541) {
+  !if (BF_DRIVE = 1541) {
 		lda	$01
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bpl .poll_start
@@ -809,8 +809,10 @@ bitfire_lz_sector_ptr2	= * + 1			;Copy the literal data, forward or overlap is g
 !if BITFIRE_AUTODETECT = 1 {
 link_chip_types
 link_sid_type			;%00000001	;bit set = new, bit cleared = old
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 link_cia1_type			;%00000010
 link_cia2_type			;%00000100
+}
 		!byte $00
 }
 
