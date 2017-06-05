@@ -61,16 +61,29 @@
 ;thus it is sufficient to inflate the gcr values in that way that they are either right or left aligned
 ;-----------------------------------------
 
+!if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
+	PLUS4_DRIVE = 1541
+} else {
+	PLUS4_DRIVE = 1551
+}
+
 .STEPPING_SPEED	= $98
 
 .drivecode	= $0000
 .bootstrap	= $0700
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 .VIA2_LED_OFF	= $f7
 .VIA2_LED_ON	= $08
 
 .VIA2_MOTOR_OFF	= $fb
 .VIA2_MOTOR_ON	= $04
+  } else {						;===== 1551
+.TCPU_LED_OFF	= %00001000
+.TCPU_LED_ON	= %11110111
+.TCPU_MOTOR_OFF	= %11111011
+.TCPU_MOTOR_ON	= %00000100
+  }
 
 .blocks_on_list = $a3		;blocks tagged on wanted list
 .track		= $a4		;current track
@@ -106,27 +119,58 @@
 .barrier	= $6e
 .filenum 	= $6f
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 .gcr2ser	= $00		;gcr to serial-port lookuptablea -> from $08-$1f
 .bin2ser	= $80		;binary to serial data
+  } else {						;===== 1551
+
+.gcr2ser	= $00		;gcr to serial-port lookuptablea -> from $08-$1f
+.bin2ser	= $80		;binary to serial data
+
+
+.z_chksum	= $02
+.z_gcrdecode	= $03		;4 bytes, GCR -> BIN decoder
+.z_transcmp	= $08
+  }
+
 
 .directory	= $0500		;directory
 .lonibbles	= $0600
 .hinibbles	= $0700
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 .gcr_dec_lo	= $f8c0
 .gcr_dec_hi	= $f8a0
+  } else {						;===== 1551
+gcrbin_98765xxx	=	$f70c	;/F70C/ <- "GCR-98765... > B-7654...." table (256 BYTEs, all 8th. BYTE valid)
+gcrbin_10xxx432	=	$f70c	;/F70C/ <- "GCR-10...432 > B-....3210" table (256 BYTEs, 4 * 8 BYTEs)
+gcrbin_xx98765x	=	$f70c	;/F70C/ <- "GCR-..98765. > B-7654...." table (64 BYTEs, even BYTEs valid)
+gcrbin_3210xxx4	=	$f70e	;/F70E/ <- "GCR-3210...4 > B-....3210" table (256 BYTEs, 16 pcs. 2 BYTEs block)
+gcrbin_5xxx9876	=	$f71c	;/F71C/ <- "GCR-5...9876 > B-7654...." table (256 BYTEs, 2 pcs. 16 BYTEs block)
+gcrbin_x43210xx	=	$f70d	;/F70D/ <- "GCR-.43210.. > B-....3210" table (128 BYTEs, all 4th. BYTE valid)
+gcrbin_765xxx98	=	$f729	;/F729/ <- "GCR-765...98 > B-7654...." table (256 BYTEs, 8 pcs. 4 BYTEs block)
+gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, cont.)
+  }
 .gcr_dec_lo_shf	= $01
 .gcr_dec_hi_shf	= $02
 
 .DIR_SECT	= 18
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 BUSY		= $02
 BLOCK_READY	= $08
 IDLE		= $00
+  } else {						;===== 1551
+BUSY		= %01111111
+BLOCK_READY	= %10111111
+IDLE		= %11111111
+  }
 
 .bootstrap_start
 !pseudopc .bootstrap {
 .bootstrap_run
+
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #$12
 		sta $0a
 		lda #.DIR_SECT
@@ -212,6 +256,70 @@ IDLE		= $00
 		;wait for atn coming low
 		bit $1800
 		bmi *-3
+  } else {                        			;===== 1551 Bootstrap routine
+		lda	#$ff
+		sta	$96		;LED always ON / IT
+		lda	#$12
+		sta	$0c
+		lda	#.DIR_SECT
+		sta	$0d
+
+		;lda	#$c0
+		;sta	$04
+		;lda	$04
+		;bmi	*-2
+
+		;fetch first dir sect and by that position head at track 18 to have a relyable start point for stepping
+		lda	#$80
+		sta	$04
+		lda	$04
+		bmi	*-2
+
+		;motor and LED is on after that
+
+		sei
+
+		ldx	#<.drivecode_-1
+		txs
+;		lda	#$00
+;-
+;		sta	$0100,x
+;		dex
+;		bpl	-
+
+		lda	#%01101111
+		sta	$00			;CPU PORT DDR: set default value
+		lda	#%00000000
+		sta	$4003			;TIA PORTA DDR: set TCBM DATA to Input
+		sta	$4004			;TIA PORTB DDR: Read datas from disk
+		sta	$4006			;TIA Control Register = $00: Normal Operation
+		lda	$4002
+		and	#%00010100		;ST1/ST0 lines: %00, ACK=0: Ready data accept from plus/4
+		ora	#%00010000		;Read Mode, DEV line not changed, ST=%00, ACK=0
+		sta	$4002
+
+		;cli		;NEVER ENABLE interrupt at the future, the SEI command is
+				; only one way to disable interrupts in 1551
+
+		ldy	#$02			;On START: SKIP CPU port
+		ldx	#$ff			;"End" sign
+.get_block	bit	$4002           	;DAV check
+		bmi	.get_block		;Wait LOW
+		lda	$4000			;Read TCBM DATA
+.blockw		sta	.drivecode,y
+-		bit	$4002			;DAV check
+		bpl	-
+		cpx	$4000			;TCBM DATA = $FF? download ready?
+		beq	.done
+		iny
+		bne	.get_block
+		inc	.blockw+2
+		bne	.get_block	;BRA
+
+.done		lda	$4002
+		ora	#%00001000		;ACK=1
+		sta	$4002
+  }
 
 		lda #$12
 		sta .track
@@ -264,10 +372,150 @@ IDLE		= $00
 		;NOTE TO SELF: DO NEVER TOUCH THAT SECTOR READ CODE AGAIN, FOR FUCKINGS SAKE! DO NOT TRY TO SAVE BYTES HERE, IT WILL BREAK TESTS WITH THCM'S SLOPPY FLOPPY :-D
 		;-------------------------------------------------------------------------------------------------------------------------------------------------------------
 .drivecode_
+
+  !if (PLUS4_DRIVE = 1551) {				;===== 1551 only routines
+
+;	Combined "Sector Head" / "Sector Data" read routine
+;	This routine read the GCR stream from disk. Decode
+;	  to binary, and calculate checksum in "read-rime",
+;	  on-the-fly. No any post-processing needed.
+;	The algo inspired by original 1551 DOS, and use the
+;	  ROM's GCR decoding tables.
+
+readdisk_1551	sta	.rd51_markcmp+1
+
+.rd51_markwait	bit	$4002			;B6 = SYNC bit
+		bvs	*-3			;Wait for _ACTIVE_ sync
+		bit	$4001			;Clear DV bit
+		bit	$4001			;Clear DV bit
+		bit	$01
+		bpl	*-2			;Wait Byte Ready, first byte after sync
+		lda	$4001			;AAAAAaaa	must be $55/$52
+.rd51_markcmp	cmp	#$00			;self-modified - block header or block data?
+		bne	.rd51_markwait
+		bit	$4001			;Clear DV bit
+		bit	$4001			;Clear DV bit (wait...)
+
+		bit	$01
+		bpl	*-2
+		lax	$4001			;aaBBBBBb Type / B000 G98765, B000 G4
+		and	#%00000001		;B000 G4
+		sta	.z_gcrdecode+1
+		txa
+		and	#%00111110		;B000 G98765
+		sta	.z_gcrdecode+0
+		lda	#$00
+		sta	.z_chksum		;(26)
+
+
+
+		bit	$01			;#0
+		bpl	*-2
+		lax	$4001			;bbbbCCCC B000 G3210, B001 G9876
+.rd51_rdcycle	and	#%00001111		;B001 G9876
+		sta	.z_gcrdecode+2
+		txa
+		and	#%11110000		;B000 G3210
+		ora	.z_gcrdecode+1		;B000 G3210...4
+		tax
+		lda	gcrbin_3210xxx4,x	;B000 G43210 -> B3210
+		ldx	.z_gcrdecode+0
+		ora	gcrbin_xx98765x,x	;B000 G98765 -> B7654
+		sta	.lonibbles,y		;(41/51)
+
+		bit	$01			;#1
+		bpl	*-2
+		lax	$4001			;CcccccDD B001 G5, B001 G43210, B002 G98
+		and	#%00000011
+		sta	.z_gcrdecode+1
+		txa
+		and	#%10000000
+		ora	.z_gcrdecode+2
+		sta	.z_gcrdecode+2
+		txa
+		and	#%01111100		;B001 G43210
+		tax
+		lda	gcrbin_x43210xx,x	;B001 G43210 -> B3210
+		ldx	.z_gcrdecode+2
+		ora	gcrbin_5xxx9876,x	;B001 G98765 -> B7654
+		sta	.lonibbles+1,y		;(48)
+
+		bit	$01			;#2
+		bpl	*-2
+		lax	$4001			;DDDddddd B002 G765, B002 G43210
+		and	#%11100000
+		ora	.z_gcrdecode+1
+		sta	.z_gcrdecode+1
+		txa
+		and	#%00011111
+		tax
+		lda	gcrbin_xxx43210,x	;B002 G43210 -> B3210
+		ldx	.z_gcrdecode+1
+		ora	gcrbin_765xxx98,x	;B002 G98765 -> B7654
+		sta	.lonibbles+2,y		;(41)
+
+		bit	$01			;#3
+		bpl	*-2
+		lax	$4001			;EEEEEeee B003 G98765, B003 G432
+		and	#%00000111
+		sta	.z_gcrdecode+3
+		txa
+		and	#%11111000
+		sta	.z_gcrdecode+2
+		lda	.z_chksum
+		eor	.lonibbles,y
+		iny
+		eor	.lonibbles,y
+		iny
+		eor	.lonibbles,y
+		iny
+		sta	.z_chksum		;(45)
+
+		bit	$01			;#4
+		bpl	*-2
+		lax	$4001			;eeFFFFFf B003 G10, B004 G98765, B004 G4
+		and	#%00111110
+		sta	.z_gcrdecode+0
+		txa
+		and	#%00000001
+		sta	.z_gcrdecode+1
+		txa
+		and	#%11000000
+		ora	.z_gcrdecode+3
+		tax
+		lda	gcrbin_10xxx432,x	;B003 G43210 -> B3210
+		ldx	.z_gcrdecode+2
+		ora	gcrbin_98765xxx,x	;B003 G98765 -> B7654
+		sta	.lonibbles,y
+		eor	.z_chksum		;(51) (total: 236 cycles / 40 GCR bits)
+
+		bit	$01			;#5/#0
+		bpl	*-2
+		sta	.z_chksum
+		lax	$4001			;ffffGGGG B004 G3210, B005 G9876
+		iny
+		beq	.rd51_rdlast
+		jmp	.rd51_rdcycle		;(19+32)
+
+
+
+.rd51_rdlast	and	#%11110000
+		ora	.z_gcrdecode+1
+		tax
+		lda	gcrbin_3210xxx4,x	;B004 G43210 -> B3210
+		ldx	.z_gcrdecode+0
+		ora	gcrbin_xx98765x,x	;B000 G98765 -> B7654
+		eor	.z_chksum
+		rts
+
+  }
+
+
 .read_sector	;need to read sector header beforehand to compare with our wanted list, if we would seek a certain sector, the kernal routines would do
 ;		lda #$00
 ;		sta $1801
 .read_sector_
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		jsr .wait_sync_mark
 		bvc *
 		lda $1c01		;22333334
@@ -369,6 +617,17 @@ IDLE		= $00
 		eor .track		;no need to fetch/check track, checksum will fail on wrong track
 .rs_back
 		bne .read_sector_	;urgh, bad checksum, find another sector
+  } else {						;===== 1551
+		lda	#$52			;Block header "sign"
+		ldy	#252			;256-4: 4 BYTEs read
+		jsr	readdisk_1551
+		bne	.read_sector_		;Header Checksum error: find next
+		lda	.lonibbles+254		;Readed header: Track number
+		cmp	.track
+		bne	.read_sector_		;Wrong track: read next sector (ugh...)
+		ldx	.lonibbles+253		;Readed header: Sector number
+		stx	.head_lo+0
+  }
 
 		;will be transformed into a lda .wanted,x
 		ldy .wanted,x		;sector on list?
@@ -382,6 +641,7 @@ IDLE		= $00
 ;		jmp .check
 ;.check_back
 ;}
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		jsr .wait_sync_mark
 		bvc *
 		lda $1c01		;22333334
@@ -499,6 +759,13 @@ IDLE		= $00
 
 		tya
 		bne ++			;checksum okay?
+  } else {						;===== 1551
+		lda	#$55			;Block data "sign"
+		ldy	#0			;256 BYTEs read
+		jsr	readdisk_1551
+		bne	++			;Data Checksum error: find next
+		ldy	#$00
+  }
 
 		ldx .head_lo + 0	;current sector number
 		lda .wanted,x		;grab index from list (A with index reused later on after this call)
@@ -516,6 +783,7 @@ IDLE		= $00
 
 .send_block
 		ldy #$00		;start with 0, we will send 2 or 4 bytes of blockinfo as preamble
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		ldx .preamble_lo
 		lda .bin2ser,x
 		;and #$05
@@ -556,8 +824,31 @@ IDLE		= $00
 !if >*-1 != >.preloop {
 	!error "preloop not in one page! Overlapping bytes: ", * & 255
 }
+  } else {						;=====	1551
+		lda	$4002
+		and	#%10000000
+		sta	.z_transcmp		;Only DAV line interesting
+
+		lda	.preamble_lo
+		ora	#%11000000			;6 valid bits send to 1st. preamble BYTE
+		and	#BLOCK_READY & BUSY
+		sta	$4000
+		iny
+.preloop	ldx	.preamble_lo,y
+		lda	$4002
+		and	#%10000000
+		cmp	.z_transcmp
+		beq	*-7
+		stx	$4000
+		sta	.z_transcmp
+		iny
+.pre_cmp = * + 1
+		cpy	#$00
+		bne	.preloop
+  }
 
 		ldy .blocksize
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		ldx .lonibbles,y
 		nop
 .sendloop				;send the data block
@@ -596,7 +887,29 @@ IDLE		= $00
 		bmi *-3
 		sta $1800
 		rts
+  } else {						;=====	1551
+.sendloop	ldx	.lonibbles,y
+		lda	$4002
+		and	#%10000000
+		cmp	.z_transcmp
+		beq	*-7
+		stx	$4000
+		sta	.z_transcmp
+		dey
+		cpy	#$ff
+		bcc	.sendloop		;(29)
 
+		ldx	#BUSY
+		lda	$4002
+		and	#%10000000
+		cmp	.z_transcmp
+		beq	*-7
+		stx	$4000
+		sta	.z_transcmp
+		bit	$4002
+		bpl	*-3
+		rts
+  }
 !if >*-1 != >.sendloop {
 	!error "sendloop not in one page! Overlapping bytes: ", * & 255
 }
@@ -672,6 +985,7 @@ IDLE		= $00
 		txa
 
 .preamble_add_byte
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		ldx #$0f
 		sax .preamble_lo,y	;mask out lower 4 bits
 		lsr
@@ -679,9 +993,13 @@ IDLE		= $00
 		lsr
 		lsr
 		sta .preamble_hi,y	;upper 4 bits
+  } else {						;===== 1551
+		sta	.preamble_lo,y
+  }
 		iny
 		rts
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 .wait_sync_mark
 		;XXX TODO maybe first check can be omitted? But this way we are save to not directly fall through next check if we missed the sync. We would read chunk then and possibly still go through the checksum, as it is just a simple 8 bit eor
 ;		lda $1c00		;wait for start of sync
@@ -696,9 +1014,16 @@ IDLE		= $00
 		rts
 
 !if >*-1 != >.wait_sync_mark { !error "wait_sync_mark not in one page: ", .wait_sync_mark, " - ", * }
+  }
+
+
 
 .turn_disc
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #.VIA2_MOTOR_ON
+  } else {						;===== 1551
+		lda	#(.TCPU_LED_OFF | .TCPU_LED_ON)	;%11111111 :)
+  }
 		jsr .motor_on
 .turn_disc_
 		jsr .read_dir_sect0	;fetch first dir sector
@@ -713,6 +1038,7 @@ IDLE		= $00
 		dec .firstblock
 .drivecode_launch
 		;XXX TODO here it would be possible to preload next block
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda $1c00
 !if BITFIRE_CONFIG_MOTOR_ALWAYS_ON = 0 {
 		and #(.VIA2_LED_OFF & .VIA2_MOTOR_OFF)
@@ -720,6 +1046,14 @@ IDLE		= $00
 		and #.VIA2_LED_OFF
 }
 		sta $1c00
+  } else {						;===== 1551
+		lda	$01
+!if BITFIRE_CONFIG_MOTOR_ALWAYS_ON = 0 {
+		and	#.TCPU_MOTOR_OFF
+}
+		ora	#.TCPU_LED_OFF
+		sta	$01
+  }
 		jsr .get_byte
 
 		;load file, file number is in A
@@ -727,13 +1061,31 @@ IDLE		= $00
 		cmp #BITFIRE_UPLOAD
 		bne *+5
 		jmp .upload
+  !if (PLUS4_DRIVE = 1551) {				;===== 1551
+		tax
+		lda	$4000		;TCBM input
+		eor	#$ff		;=$FF? == input on plus/4 side?
+		bne	*-5
+		lda	#BUSY
+		sta	$4000		;set status to BUSY
+		lda	$4002
+		ora	#%00001000	;ACK=1: TCBM DATA output on 1551 side
+		sta	$4002
+		lda	#$ff
+		sta	$4003		;and set TCBM DATA port to output
+		txa
+  }
 		cmp #BITFIRE_LOAD_NEXT
 		beq .load_next
 		sta .filenum		;set new filenum
 		bcs .turn_disc
 .load_next
 		;XXX TODO send out preloaded sector here if filenum = expected filenum
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #.VIA2_LED_ON | .VIA2_MOTOR_ON
+  } else {						;===== 1551
+		lda	#.TCPU_LED_ON
+  }
 		jsr .motor_on		;turn on led and motor, if not on already
 
 		lda .filenum		;get current or autoinced filenum
@@ -837,7 +1189,11 @@ IDLE		= $00
 		ldy .to_track
 
 		ldx #$11		;max sectors on track
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda $1c00
+  } else {						;===== 1551
+		lda	$01
+  }
 		and #$9f
 		cpy #31
 		bcs ++			;-> bitrate = $00
@@ -854,6 +1210,7 @@ IDLE		= $00
 		ora #$20
 ++
 		stx .max_sectors	;store new max sectors
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		sta $1c00		;now set bitrate
 
 		asr #$60		;take four bitrates and shift down
@@ -863,7 +1220,9 @@ IDLE		= $00
 		lsr			;0/1/2/3
 		sta .smc1+1		;adapt gcr decode to speedzone by modifying branches
 		sta .smc2+1
-
+  } else {						;===== 1551
+		sta	$01		;now set bitrate
+  }
 		tya
 		sec
 		sbc .track		;how many tracks to go?
@@ -880,6 +1239,7 @@ IDLE		= $00
 		tax
 		beq +			;nothing to step, end
 .step
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #.STEPPING_SPEED
 		sta $1c05
 .halftrack
@@ -892,7 +1252,26 @@ IDLE		= $00
 		sta $1c00
 		bit $1c05
 		bmi *-3
-
+  } else {						;===== 1551
+;.halftrack
+		tya
+		eor	$01
+		sec
+		rol
+		and	#%00000011
+		eor	$01
+		sta	$01
+		stx	.stepsavex+1
+		sty	.stepsavey+1	;Save X/Y
+		ldx	#.STEPPING_SPEED
+--		ldy	#(102-1)	;2
+-		dey			;2
+		bne	-		;3 (5 cycles, if counting. 102*5 = 510, +2 = 512 clock-cycles = 256 1541 cycles.)
+		dex
+		bmi	--		;+5 cycles, if "big" cycle is counting. (102-1)
+.stepsavex	ldx	#$00
+.stepsavey	ldy	#$00		;Restore X/Y
+  }
 		dex
 		bne .step
 +
@@ -911,6 +1290,7 @@ IDLE		= $00
 		jsr .seek
 		jsr .read_sector
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		ldy #$00
 		;decode dir
 -
@@ -932,12 +1312,24 @@ IDLE		= $00
 		sta .directory,y
 		dey
 		bne -
-
+  } else {						;===== 1551
+		ldy	#$00
+-		lda	.lonibbles,y
+		sta	.directory,y
+		dey
+		bne	-
+  }
 		rts
 
 .motor_on
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		ora $1c00
 		sta $1c00
+  } else {						;===== 1551
+		and	$01			;LED ON/OFF
+		ora	#.TCPU_MOTOR_ON		;Motor ON
+		sta	$01
+  }
 !if BITFIRE_CONFIG_MOTOR_ALWAYS_ON = 0 {
 		inc .skip_wcheck	;disable wanted check ($4c of jmp is transformed into $4d = eor $xxxx), so any sector is okay
 		jsr .read_sector
@@ -947,6 +1339,7 @@ IDLE		= $00
 }
 		rts
 
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 .lock
 -
 		ldx $1800		;still locked?
@@ -977,7 +1370,20 @@ IDLE		= $00
 		bcc .gloop		;more bits to fetch?
 		sty $1800		;set busy bit
 		rts
+  } else {						;===== 1551
+.get_byte	lda	#$00
+		sta	$4003		;TCBM data to input
+		lda	$4002
+		and	#%00010111	;ACK=0: TCBM DATA input on 1551 side
+		sta	$4002
 
+		bit	$4002		;DAV check
+		bmi	*-3
+		lda	$4000		;Read TCBM data
+		bit	$4002		;DAV check
+		bpl	*-3
+		rts
+  }
 
 		;receive end_address of code being uploaded
 		;maximum is $0110 - $04ae, buffers at $0500,$0600,$0700 can be used

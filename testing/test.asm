@@ -1,7 +1,11 @@
+!if TEST_PLUS4 = 0 {
+	!src "../bitfire/loader_acme_c64.inc"	
+}
 !if TEST_PLUS4 = 1 {
-  !src "../bitfire/loader_acme_plus4.inc"
-} else {
-  !src "../bitfire/loader_acme_c64.inc"	
+	!src "../bitfire/loader_acme_plus4.inc"
+}
+!if TEST_PLUS4 = 2 {
+	!src "../bitfire/loader_acme_plus4_1551.inc"
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -395,12 +399,12 @@ compare:
 
 	* = BITFIRE_INSTALLER_ADDR
 
-!if BITFIRE_PLATFORM = BITFIRE_PLUS4 {
-
-!bin "../bitfire/installer_plus4_41dc_swap.prg",,2
-
-} else {
-
-!bin "../bitfire/installer_c64.prg",,2
-	
+!if TEST_PLUS4 = 0 {
+	!bin "../bitfire/installer_c64.prg",,2
+}
+!if TEST_PLUS4 = 1 {
+	!bin "../bitfire/installer_plus4_41dc_swap.prg",,2
+}
+!if TEST_PLUS4 = 2 {
+	!bin "../bitfire/installer_plus4_1551.prg",,2
 }

@@ -2,6 +2,12 @@
 !convtab pet
 !cpu 6510
 
+!if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
+	PLUS4_DRIVE = 1541
+} else {
+	PLUS4_DRIVE = 1551
+}
+
 !zone installer {
 .dc_src		= $fc
 .dc_dst		= $fe
@@ -90,24 +96,46 @@
 		lda #$3f
 		sta $dd02
 } else {
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #%11001000				  ;ATN/CLK/DATA drive Off (Cas. MTR Off)
 		sta $01
 
 		lda #%00001111				  ;ATN/CLK/DATA drive OUTPUT, CLK / DATA in INPUT (Cas. MTR OUTPUT, Cas. RD INPUT)
 		sta $00
-
+  } else {						;===== 1551
+		ldx	#$30
+		lda	$ae
+		cmp	#8
+		beq	+
+		ldx	#$00
+		cmp	#9
+		beq	+
+-		inc	$ff19
+		jmp	-
++		stx	.install_51un+1
+		lda	#%01000000
+		sta	$fec5,x			;TCBM DAV out, ACK in
+		sta	$fec2,x			;TCBM DAV 1
+		lda	#%00000000
+		sta	$fec4,x			;TCBM ST1/0 in
+		sta	$fec0,x			;TCBM DATA = $00
+		lda	#%11111111
+		sta	$fec3,x			;TCBM DATA DDR: Datas to 1551
+		lda	$fec2,x			;TCBM handshake lines
+		bmi	*-3			;Wait ACK line 0 => 1551 ready to accept datas
+  }
 }
 
 .cnt = * + 1
 		lda #(>.drivecode_size) + 1
-
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+!if (PLUS4_DRIVE = 1541) {                  ;===== 1541
+  !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		bit $dd00		;wait until drive bootloader is active
 		bmi *-3
 
 		lda #$37
 		sta $dd02
-} else {
+  } else {
 		bit $01				;wait until drive bootloader is active
 		bmi *-2
 
@@ -123,7 +151,7 @@
 		nop
 		nop
 		nop
-}
+ }
 
 -
 .dc_data = * + 1
@@ -132,7 +160,7 @@
 		ror
 		sta .dc_src
 
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+  !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$2f
 .s_loop
 		and #$2f						;clear bit 4 and 0..2 and waste some cycles here
@@ -145,7 +173,7 @@
 		pla
 		lsr .dc_src
 		bne .s_loop
-} else {
+  } else {
 		lda #%11001001				  ;ATN drive Off, DATA drive On
 .s_loop
 		and #%11001001				  ;CLK drive Off
@@ -166,8 +194,31 @@
 		nop
 		lsr .dc_src
 		bne .s_loop
+  }
+} else {						;=====	1551
+-
+.dc_data = * + 1
+		lda	.drivecode_start+2	;WARNING: +2: Skip the CPU port DDR / PORT registers on the 1551 side
+		sta	$fec0,x			;Data to drive
+		lda	#%00000000		;ACK=0: Data valid
+		sta	$fec2,x
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		lda	#$00
+		sta	$fec0,x			;DATA = $00: no last BYTE
+		lda	#%01000000		;ACK=1: One BYTE transfered
+		sta	$fec2,x
+		nop
+		nop
+		nop
+		nop
 }
-
 		inc .dc_data
 		bne +
 		inc .dc_data+1
@@ -183,8 +234,23 @@
 		lda #$37			;raise atn to signal end of transfer
 		sta $dd02
 } else {
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #%11001100				  ;ATN drive On, CLK/DATA drive Off
 		sta $01
+  } else {						;===== 1551
+		lda	#$ff			;Last BYTE transfered, start code in 1551!
+		sta	$fec0,x			;Data to drive
+		lda	#%00000000		;ACK=0: Data valid
+		sta	$fec2,x
+		nop
+		nop
+		nop
+		nop
+		lda	#$ff
+		sta	$fec0,x			;DATA = $FF: This is last BYTE
+		lda	#%01000000		;ACK=1: One (and last) BYTE transfered
+		sta	$fec2,x
+  }
 }
 
 !if (BITFIRE_RESIDENT_AUTOINST != 0) {
@@ -251,8 +317,11 @@
 		lda #$3f			;drop atn to signal end of transfer
 		sta $dd02
 } else {
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 		lda #%11001000						  ;ATN/CLK/DATA drive Off
 		sta $01
+  } else {						;===== 1551
+  }
 }
 
 !if BITFIRE_AUTODETECT = 1 {
@@ -283,9 +352,15 @@
 		lda $dd00
 		bpl -
 } else {
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
 -
 		lda $01
 		bpl -
+  } else {						;===== 1551
+.install_51un	ldx	#$00			;Self-modified: $30 (U8) / $00 (U9)
+		lda	$fec2,x
+		bmi	*-3
+  }
 }
 		rts
 

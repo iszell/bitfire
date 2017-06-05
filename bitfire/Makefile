@@ -41,7 +41,7 @@ installer.prg: installer.asm drivecode.asm request_disc.asm resident.asm detect.
 	@$(ACME) $(ACMEOPT) -o installer.prg installer.asm
 	@rm resident_labels.txt
 
-
+#This is the parametrized target for building the resident, please note $(ACME_DEFS).
 resident_p: resident.asm config.inc Makefile resident_minimal_zp.asm
 	@echo -n "Buidling resident part ->"
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o resident -l resident_labels.txt resident.asm
@@ -64,6 +64,13 @@ resident_p: resident.asm config.inc Makefile resident_minimal_zp.asm
 	@cat loader_acme.inc | sed "s/\(.*\)/\.var \\1/" >> loader_kickass.inc
 	@#echo "}" >> loader_kickass.inc
 
+drivecode41.prg: drivecode.asm config.inc Makefile
+	@$(ACME) $(ACMEOPT) -o $@ $<
+
+
+drivecode : drivecode41.prg
+
+#This is the parametrized target for building the installer, please note $(ACME_DEFS).
 installer_p: installer.asm drivecode.asm request_disc.asm resident_p detect.asm config.inc Makefile resident_minimal_zp.asm
 	@echo "Buidling installer..."
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o installer_p installer.asm
@@ -91,6 +98,13 @@ installer_plus4_41dc.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_c6510.inc 	loader_c6510_plus4_41dc.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_41dc.inc 
 
+installer_plus4_1551.prg: Makefile resident.asm installer.asm config.inc
+	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=0 installer_p
+	@mv installer_p $@
+	@mv loader_acme.inc 	loader_acme_plus4_1551.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_1551.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_1551.inc 
+
 installer_plus4_41sc_swap.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=1 resident_p
 	@mv resident resident_p4_41dc 
@@ -113,7 +127,7 @@ installer_plus4_41dc_swap.prg: installer_plus4_41sc_swap.prg
 	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc
 
 
-installers: installer_c64.prg installer_plus4_41sc.prg installer_plus4_41dc.prg installer_plus4_41sc_swap.prg installer_plus4_41dc_swap.prg
+installers: installer_c64.prg installer_plus4_41sc.prg installer_plus4_41dc.prg installer_plus4_1551.prg installer_plus4_41sc_swap.prg installer_plus4_41dc_swap.prg
 	@echo "All installers are compiled!"
 
 clean:

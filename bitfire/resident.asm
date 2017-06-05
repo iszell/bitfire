@@ -136,9 +136,8 @@ link_decomp_under_io
 bitfire_send_byte_
 		;XXX we do not wait for the floppy to be idle, as we waste enough time with depacking or the fallthrough on load_raw to have an idle floppy
 
-		sta .filenum			;save value
-
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+		sta .filenum			;save value
 		ldx #$ff
 		lda #$ef
 		sec				;on first run we fall through bcc and thus end up with carry set and $0f after adc -> with eor #$30 we end up with $3f, so nothing happens on the first $dd02 write
@@ -154,23 +153,43 @@ bitfire_send_byte_
 						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
 						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
 } else {
-!if (PLUS4_DRIVE = 1541) {
+  !if (PLUS4_DRIVE = 1541) {				;===== 1541
+		sta .filenum			;save value
 		ldx #7
-		lda #%11001001						  ;ANT/CLK drive Off, DATA drive On
+		lda #%11001001			;ANT/CLK drive Off, DATA drive On
 .bit_loop
 		lsr .filenum
 		bcc +
 		and #%11111110
 +
-		eor #%00000011						  ;DATA/CLK drive changed
+		eor #%00000011			;DATA/CLK drive changed
 		sta $01
 		ora #%00000001
-        jsr .bfwait24				;24 cycles
-        jsr .bfwait12               ;12 cycles
+		jsr .bfwait24			;24 cycles
+		jsr .bfwait12			;12 cycles
 		dex
 		bpl .bit_loop
-} else {
-}
+  } else {						;===== 1541
+		sta	$fef0			;data to TCBM data port register
+		lda	#%00000000
+		sta	.filenum		;Barrier = 0
+		bit	$fef2
+		bmi	*-3			;wait until DAV Lo
+		ldx	#%11111111
+		stx	$fef3			;switch TCBM data to output on plus/4 side
+		sta	$fef2			;ACK = 0, data valid on 1551 side
+		nop
+		nop
+		nop
+		nop
+		nop
+		sta	$fef3			;TCBM data DDR set to IN
+		stx	$fef0			;
+		lda	#%11000000
+		sta	$fef2			;ACK = 1, cycle ent in 1551 side
+		bit	$fef2
+		bpl	*-3			;wait until DAV Hi
+  }
 }
 		rts
 
@@ -198,7 +217,7 @@ bitfire_loadraw_
 		bmi .poll_end			;block ready?
 } else {
   !if (PLUS4_DRIVE = 1541) {
-		lda $01
+		lda	$01
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bpl .poll_start
 
@@ -208,6 +227,10 @@ bitfire_loadraw_
 		rts
 
   } else {
+		lda	$fef0			;TCBM data B76 = "mode"
+		asl				;focus on bit 1 and 0 and copy bit 1 to carry (set if floppy is idle/eof is reached)
+		bpl	.poll_start
+		jmp	.poll_end
   }
 }
 
@@ -225,6 +248,12 @@ bitfire_loadraw_
 		lda #$60			;set rts
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits of payload possible, first two bist are cleared/unusable. Also sets an rts in receive loop
 
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
+		asl
+		asl
+  }
+}
 		bpl .skip_load_addr		;#$fc -> first block
 
 !if BITFIRE_DEBUG = 1 {
@@ -424,6 +453,20 @@ sei_addr = *
 		jsr .bfwait12			;+12 cycles
 
 		clc
+  }
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
+.get_one_byte
+.get_one_byte_
+		stx	.blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+		lda	$fef2
+		eor	#%01000000
+		ldy	$fef0
+		sta	$fef2
+		dec	.blockpos+1
+		clc
+		;jsr	.bfwait12		;+12 cycles
+		;ldx	#.get_one_byte_x			;%11001000
+		tya
   }
 }
 
@@ -744,7 +787,12 @@ bitfire_lz_sector_ptr2	= * + 1			;Copy the literal data, forward or overlap is g
 		;XXX TODO can be omitted as done in pollblock, but a tad faster this way
 		bit $dd00
 } else {
-		bit $01
+  !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC)) {	;=====	1541
+		bit	$01
+  }
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
+		bit	$fef0
+  }
 }
 		bvs .lz_skip_end
 
