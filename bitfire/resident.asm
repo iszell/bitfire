@@ -487,6 +487,11 @@ bitfire_load_addr_lo = * + 1
   		lda	#%00001111		;Datasette RD line switch to input
   		jsr .bfdblclock
   }
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
+		lda	$fef2
+		ora	#%01000000
+		sta	$fef2			;Carry not touched this routine
+  }
 }
 .poll_end
 !if BITFIRE_DECOMP = 0 {
