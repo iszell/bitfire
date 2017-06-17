@@ -163,7 +163,11 @@ irq:
 	lda $ff19
 	pha
 
+!if TEST_PLUS4 = 2 {
+    lda #$05 + 12*8
+} else {
 	lda #$cc
+}
 -
 	inc $ff19
 	cmp $ff1d

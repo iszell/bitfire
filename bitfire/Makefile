@@ -98,8 +98,11 @@ installer_plus4_41dc.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_c6510.inc 	loader_c6510_plus4_41dc.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_41dc.inc 
 
+drivediff: installer_plus4_1551.prg installer_plus4_41sc_swap.prg
+	diff loader_acme_plus4_1551.inc loader_acme_plus4.inc
+
 installer_plus4_1551.prg: Makefile resident.asm installer.asm config.inc
-	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=0 installer_p
+	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=1 installer_p
 	@mv installer_p $@
 	@mv loader_acme.inc 	loader_acme_plus4_1551.inc 
 	@mv loader_c6510.inc 	loader_c6510_plus4_1551.inc 

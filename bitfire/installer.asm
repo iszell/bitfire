@@ -9,6 +9,16 @@
 }
 
 !zone installer {
+
+!if (BITFIRE_PLATFORM = BITFIRE_C64) {
+.z_fa		= $ba		;Serial: Device number / KERNAL
+} else {
+.z_fa		= $ae		;Serial: Device number / KERNAL
+.z_usekdy	= $f9		;TCBM Listen/Talk flag
+}
+
+
+
 .dc_src		= $fc
 .dc_dst		= $fe
 
@@ -32,12 +42,9 @@
 }
 		sta .iec_units
 
-		lda #8
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		sta $ba
-} else {
-		sta $ae
-}
+		lda #8
+		sta .z_fa
 		;jmp do_install
 
 		ldx #4
@@ -45,19 +52,11 @@
 		jsr .open_w_15
 		bmi +
 		inc .iec_units
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		lda $ba
-} else {
-		lda $ae
-}
+		lda .z_fa
 		sta .my_drive
 		jsr .unlisten
 +
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		inc $ba
-} else {
-		inc $ae
-}
+		inc .z_fa
 		dex
 		bne -
 .iec_units = * + 1
@@ -68,21 +67,66 @@
 -
 		lda .pebcak,x
 		beq .init_inst
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		sta $07c0,x
-} else {
-		sta $0fc0,x
-}
 		inx
 		bne -
 .do_install
 .my_drive = * + 1
 		lda #$08
-
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		sta $ba
+		sta .z_fa
 } else {
-		sta $ae
+		lda	#0
+		sta	.z_usekdy
+		lda	.z_fa		;Read previously used device number
+		bne	+
+		lda	#8		;If not used any device, check 8
+		sta	.z_fa
++		jsr	.open_w_15
+		bmi	+		;Drive not present? Hm...
+		lda	.z_fa
+		sta	.my_drive
+		bit	.z_usekdy	;Drive on TCBM bus?
+		php
+		jsr	.unlisten
+		plp
+		bmi	.do_install
+
++		lda	#8		;Start check cycle in device 8
+		sta	.z_fa
+		ldx	#4
+-		lda	#0
+		sta	.z_usekdy
+		jsr	.open_w_15
+		bmi	++
+		bit	.z_usekdy
+		bmi	+
+		inc	.iec_units
++		lda	.z_fa
+		sta	.my_drive
+		jsr	.unlisten
+++		inc	.z_fa
+		dex
+		bne	-
+.iec_units = * + 1
+		lda	#$00
+		cmp	#1
+		beq	.do_install
+		ldx	#$00
+-		lda	.pebcak,x
+		beq	.init_inst
+		sta	$0fc0,x
+		inx
+		bne	-
+.do_install
+.my_drive = * + 1
+		lda	#$08
+		sta	.z_fa
+
+
+
+
+.startinstall
+
 }
 		;install bootloader with fast m-w and onetime loader-init
 		jsr .install_bootstrap
@@ -104,7 +148,7 @@
 		sta $00
   } else {						;===== 1551
 		ldx	#$30
-		lda	$ae
+		lda	.z_fa
 		cmp	#8
 		beq	+
 		ldx	#$00
@@ -118,11 +162,14 @@
 		sta	$fec2,x			;TCBM DAV 1
 		lda	#%00000000
 		sta	$fec4,x			;TCBM ST1/0 in
+		sta	$fec1,x			;TCBM ST1/0 = 0, if switc DIR to output
 		sta	$fec0,x			;TCBM DATA = $00
 		lda	#%11111111
 		sta	$fec3,x			;TCBM DATA DDR: Datas to 1551
 		lda	$fec2,x			;TCBM handshake lines
 		bmi	*-3			;Wait ACK line 0 => 1551 ready to accept datas
+		lda	#%00000001
+		sta	$fec4,x			;ST0 = Out, 0
   }
 }
 
@@ -250,6 +297,9 @@
 		sta	$fec0,x			;DATA = $FF: This is last BYTE
 		lda	#%01000000		;ACK=1: One (and last) BYTE transfered
 		sta	$fec2,x
+
+		lda	$fec2,x			;TCBM handshake lines
+		bpl	*-3			;Wait ACK line 1 => 1551 ready to accept datas
   }
 }
 
@@ -365,11 +415,7 @@
 		rts
 
 .open_w_15
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-		lda $ba
-} else {
-		lda $ae
-}
+		lda .z_fa
 		jsr .listen
 		lda #$00
 		sta $90

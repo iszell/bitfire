@@ -1,0 +1,1036 @@
+
+; ******** Source: resident.asm
+     1                          !zone resident {
+
+; ******** Source: ../music.inc
+     1                          link_music_init_side1		= $1000
+     2                          link_music_play_side1		= $1003
+
+; ******** Source: resident.asm
+     2                          
+
+; ******** Source: config.inc
+     1                          ;Platform selection
+     2                          BITFIRE_C64   = 64
+     3                          BITFIRE_PLUS4 = 16
+     4                          
+     5                          !ifndef BITFIRE_PLATFORM {
+     6                          	BITFIRE_PLATFORM = BITFIRE_PLUS4
+     7                          }
+     8                          
+     9                          ;The type of drive/receiver on Plus/4 
+    10                          BITFIRE_PLUS4_1541SC = 1			;Drive: 1541, Single Clock
+    11                          BITFIRE_PLUS4_1541DC = 2			;Drive: 1541, Double Clock
+    12                          BITFIRE_PLUS4_1551   = 8			;Drive: 1551, Double Clock
+    13                          
+    14                          
+    15                          !if BITFIRE_PLATFORM = BITFIRE_PLUS4 {
+    16                          !ifndef BITFIRE_PLUS4_MODE {
+    17                          	BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551
+    18                          }
+    19                          }
+    20                          
+    21                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+    22                          BITFIRE_SID = $d400
+    23                          } else {
+    24                          BITFIRE_SID = $fd40
+    25                          }
+    26                          
+    27                          ;options for resident part
+    28                          BITFIRE_RESIDENT_ADDR           = $0200
+    29                          BITFIRE_ZP_ADDR                 = $04
+    30                          
+    31                          ;Framework options, certain features can be switched on/off separatedly
+    32                          BITFIRE_FRAMEWORK               = 1     ;Enable/Disable whole framework
+    33                          BITFIRE_FRAMEWORK_BASEIRQ       = 1     ;Include a base irq handler into the framework
+    34                          BITFIRE_FRAMEWORK_FRAMECOUNTER  = 1     ;Include framecounter handling
+    35                          BITFIRE_FRAMEWORK_MUSIC_NMI     = 1     ;should base irq run in NMI or raster IRQ?
+    36                          
+    37                          ;Include a decompressor and by that on the fly decrunching?
+    38                          BITFIRE_DECOMP                  = 1     ;Include decompressor and on the fly decompression
+    39                          BITFIRE_DECOMP_ZERO_OVERLAP     = 1     ;Packed files have no overlap and can be completely depacked in place. Bitnax by default creates files that meet that spec. If you wish the old behaviour, use --overlap
+    40                          
+    41                          BITFIRE_NMI_GAPS                = 0     ;Leaves gaps @ $0200 and $0300 (if resident part is at default location) for NMI handlers, needed for stable NMIs with THCM's digistuff.
+    42                          
+    43                          BITFIRE_AUTODETECT              = 1     ;Autodetect CIA + SID and store the results in the resident part for later use, so upcoming parts do not need an own detection anymore but can read out that values again
+    44                          
+    45                          BITFIRE_WORLD_DOMINATION        = 1     ;Soon to come :-D
+    46                          
+    47                          ;options for installer
+    48                          BITFIRE_INSTALLER_ADDR          = $1200
+    49                          BITFIRE_RESIDENT_AUTOINST       = 1     ;Set this to zero if you want to do the install of the resident part on your own, but why would you want to do so anyway? :-D
+    50                          
+    51                          ;options for drivecode
+    52                          BITFIRE_CONFIG_MOTOR_ALWAYS_ON  = 1     ;If you want to be annoying, let the motor spin during the whole demo :-D
+    53                          BITFIRE_CONFIG_INTERLEAVE       = 4     ;Turned out to be the best choice, if you really think you know it better, change it and get slowed down :-)
+    54                          
+    55                          ;add extra debug functionality, not intended for demos
+    56                          BITFIRE_DEBUG                   = 0
+    57                          
+    58                          ;constants, better don't touch
+    59                          BITFIRE_UPLOAD                  = $80
+    60                          BITFIRE_LOAD_NEXT               = $ef
+    61                          BITFIRE_REQ_DISK                = $f0
+    62                          BITFIRE_IS_INCLUDED             = 1
+    63                          
+    64                          BITFIRE_SID_NEW                 = 1
+    65                          BITFIRE_CIA_NEW                 = 2
+
+; ******** Source: resident.asm
+     3                          
+     4                          !convtab pet
+     5                          !cpu 6510
+     6                          
+     7                          ;loader zp-addresses
+     8                          .barrier	= BITFIRE_ZP_ADDR + 0
+     9                          .filenum	= .barrier
+    10                          
+    11                          ;depacker zp-addresses
+    12                          .lz_bits	= BITFIRE_ZP_ADDR + 1
+    13                          .lz_dst		= BITFIRE_ZP_ADDR + 2
+    14                          .lz_end		= BITFIRE_ZP_ADDR + 4
+    15                          .lz_tmp		= BITFIRE_ZP_ADDR + 6
+    16                          
+    17                          !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
+    18                          	BF_DRIVE = 1541
+    19                          } else {
+    20                          	BF_DRIVE = 1551
+    21                          }
+    22                          
+    23                          !ifndef BF_PLUS4_BINCOMP {
+    24                          	BF_PLUS4_BINCOMP = 0
+    25                          }
+    26                          
+    27                          !if BITFIRE_DEBUG = 1 {
+    28                          bitfire_debug_filenum	= BITFIRE_ZP_ADDR + 7
+    29                          }
+    30                          
+    31                          ;define that label here, as we only aggregate labels from this file into loader_*.inc
+    32                          bitfire_install_ = BITFIRE_INSTALLER_ADDR
+    33                          
+    34                          !if BITFIRE_DECOMP = 0 {
+    35                          bitfire_load_addr_hi = .filenum			;in case of no loadcompd, store the highbyte of loadaddress separatedly
+    36                          }
+    37                          
+    38                          		* = BITFIRE_RESIDENT_ADDR
+    39                          
+    40                          !if BITFIRE_FRAMEWORK = 1 & BITFIRE_FRAMEWORK_FRAMECOUNTER = 1 {
+    41                          link_frame_count
+    42  0200 0000               		!word 0
+    43                          }
+    44                          
+    45                          !if BITFIRE_NMI_GAPS = 1 & BITFIRE_DEBUG = 0 & BITFIRE_PLATFORM = BITFIRE_C64 {
+    46                          !align 255,2
+    47                          .lz_gap1
+    48                          		nop
+    49                          		nop
+    50                          		nop
+    51                          		nop
+    52                          		nop
+    53                          		nop
+    54                          }
+    55                          
+    56                          !if BITFIRE_FRAMEWORK = 1 {
+    57                          !if BITFIRE_FRAMEWORK_BASEIRQ = 1 {
+    58                          link_player
+    59  0202 48                 		pha
+    60                          !if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+    61  0203 ad13ff             		lda $ff13
+    62  0206 48                 		pha
+    63  0207 29fd               		and #%11111101
+    64  0209 8d13ff             		sta $ff13
+    65                          }
+    66  020c 98                 		tya
+    67  020d 48                 		pha
+    68  020e 8a                 		txa
+    69  020f 48                 		pha
+    70                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+    71                          		inc $01				;should be save with $01 == $34/$35, except when music is @ >= $e000
+    72                          !if BITFIRE_FRAMEWORK_MUSIC_NMI = 1 {
+    73                          		lda $dd0d
+    74                          } else {
+    75                          		dec $d019
+    76                          }
+    77                          } else {
+    78  0210 ce09ff             		dec $ff09
+    79                          }
+    80                          
+    81  0213 202002             		jsr link_music_play
+    82                          
+    83                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+    84                          		dec $01
+    85                          }
+    86  0216 68                 		pla
+    87  0217 aa                 		tax
+    88  0218 68                 		pla
+    89  0219 a8                 		tay
+    90                          !if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+    91  021a 68                 		pla
+    92  021b 8d13ff             		sta $ff13
+    93                          }
+    94  021e 68                 		pla
+    95  021f 40                 		rti
+    96                          }
+    97                          
+    98                          link_music_play
+    99                          !if BITFIRE_FRAMEWORK_FRAMECOUNTER = 1 {
+   100  0220 ee0002             		inc link_frame_count + 0
+   101  0223 d003               		bne +
+   102  0225 ee0102             		inc link_frame_count + 1
+   103                          +
+   104                          link_music_addr = * + 1
+   105  0228 4c0310             		jmp link_music_play_side1
+   106                          }
+   107                          		;this is the music play hook for all parts that they should call instead of for e.g. jsr $1003, it has a variable music location to be called
+   108                          		;and advances the frame counter if needed
+   109                          
+   110                          
+   111                          !if BITFIRE_DECOMP = 1 {
+   112                          link_decomp	= bitfire_decomp_
+   113                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   114                          ;		;expect $01 to be $35
+   115                          link_load_next_double
+   116                          		;loads a splitted file, first part up to $d000 second part under IO
+   117                          		jsr link_load_next_comp
+   118                          link_load_next_raw_decomp
+   119                          		jsr link_load_next_raw
+   120                          link_decomp_under_io
+   121                          		dec $01				;bank out IO
+   122                          		jsr link_decomp			;depack
+   123                          		inc $01				;bank in again
+   124                          		rts
+   125                          }
+   126                          }
+   127                          }
+   128                          
+   129                          
+   130                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   131                          bitfire_send_byte_
+   132                          		;XXX we do not wait for the floppy to be idle, as we waste enough time with depacking or the fallthrough on load_raw to have an idle floppy
+   133                          		sta .filenum			;save value
+   134                          		ldx #$ff
+   135                          		lda #$ef
+   136                          		sec				;on first run we fall through bcc and thus end up with carry set and $0f after adc -> with eor #$30 we end up with $3f, so nothing happens on the first $dd02 write
+   137                          .bit_loop
+   138                          		bcc +
+   139                          		adc #$1f			;on all other rounds carry is cleared here
+   140                          +
+   141                          		eor #$30			;flip bit 5 and toggle bite 4
+   142                          		sta $dd02
+   143                          		and #$1f			;clear bit
+   144                          		ror <(.filenum-$ff),x		;fetch next bit from filenumber and waste cycles
+   145                          		bne .bit_loop			;last bit?
+   146                          						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
+   147                          						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
+   148                          		rts
+   149                          } else {
+   150                          	;This is defined elsewhere below for Plus/4.
+   151                          }
+   152                          
+   153                          
+   154                          !if BITFIRE_FRAMEWORK = 1 {
+   155                          link_load_next_raw
+   156  022b a9ef               		lda #BITFIRE_LOAD_NEXT
+   157                          link_load_raw
+   158                          }
+   159                          
+   160                          bitfire_loadraw_
+   161                          !if (BF_DRIVE = 1541) {
+   162                          		jsr bitfire_send_byte_		;easy, open...
+   163                          } else {
+   164  022d 20b302             		jsr .bitfire_send_byte51_
+   165                          }
+   166                          
+   167                          !if BITFIRE_DECOMP = 1 {
+   168                          -
+   169  0230 203502             		jsr .pollblock
+   170  0233 90fb               		bcc -
+   171                          ;		rts				;just run into pollblock code again that will then jump to .poll_end and rts
+   172                          } else {
+   173                          		pha				;we are too fast in standalone mode, need to waste a few cycles for letting the drive settle
+   174                          		pla
+   175                          }
+   176                          .pollblock
+   177                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   178                          		lda $dd00			;bit 6 is always set if not ready or idle/EOF so no problem with just an ASL
+   179                          		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
+   180                          		bmi .poll_end			;block ready?
+   181                          } else {
+   182                            !if (BF_DRIVE = 1541) {				;===== 1541
+   183                          		lda	$01
+   184                          		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
+   185                          		bpl .poll_start
+   186                          
+   187                          !if BITFIRE_DECOMP = 0 {
+   188                          		bcc .pollblock
+   189                          }
+   190                          		rts
+   191                          
+   192                            } else {						;===== 1551
+   193  0235 adf0fe             		lda	$fef0			;TCBM data B76 = "mode"
+   194  0238 0a                 		asl				;focus on bit 1 and 0 and copy bit 1 to carry (set if floppy is idle/eof is reached)
+   195  0239 1003               		bpl	.poll_start
+   196  023b 4c8902             		jmp	.poll_end
+   197                            }
+   198                          }
+   199                          
+   200                          .poll_start
+   201                          
+   202                          !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   203                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+   204                          		jsr .bfsingleclock
+   205                            } else {
+   206                              !if BF_PLUS4_BINCOMP>0 and BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC {
+   207                              	top .get_one_byte+3
+   208                              }
+   209                            }	
+   210                          }
+   211  023e a960               		lda #$60			;set rts
+   212                            !if (BF_DRIVE = 1551) {				;===== 1551
+   213                          		;ldy	#$ff
+   214  0240 a200               		ldx	#0
+   215                            }
+   216  0242 207902             		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits of payload possible, first two bist are cleared/unusable. Also sets an rts in receive loop
+   217                            !if (BF_DRIVE = 1551) {				;===== 1551
+   218  0245 0a                   		asl
+   219  0246 0a                 		asl
+   220                            }
+   221  0247 1015               		bpl .skip_load_addr		;#$fc -> first block
+   222                          
+   223                            !if (BF_DRIVE = 1551) {				;===== 1551
+   224                          !if (((BITFIRE_DEBUG = 1) and (BITFIRE_DECOMP = 1)) or ((BITFIRE_DEBUG = 0) and (BITFIRE_DECOMP = 0))) {
+   225                          		jsr	.get_one_byte		;get dummy BYTE, on 1551: preamble size always even number of bytes
+   226                          }
+   227                            }
+   228                          
+   229                          !if BITFIRE_DEBUG = 1 {
+   230                          		jsr .get_one_byte		;fetch filenum
+   231                          		sta bitfire_debug_filenum
+   232                          }
+   233                          
+   234  0249 207c02             		jsr .get_one_byte		;fetch load/blockaddr lo
+   235                          !if BITFIRE_DECOMP = 1 {			;decompressor only needs to be setup if there
+   236  024c 8dec02             		sta bitfire_lz_sector_ptr1
+   237  024f 8d5403             		sta bitfire_lz_sector_ptr2
+   238                          }
+   239  0252 8d8502             		sta bitfire_load_addr_lo	;destination lowbyte
+   240                          
+   241  0255 207c02             		jsr .get_one_byte		;fetch loadaddr hi, returns with a cleared carry
+   242  0258 8ded02             		sta bitfire_load_addr_hi
+   243                          !if BITFIRE_DECOMP = 1 {			;decompressor only needs to be setup if there
+   244  025b 8d5503             		sta bitfire_lz_sector_ptr2 + 1
+   245                          }
+   246                          .skip_load_addr
+   247                          !if BITFIRE_DECOMP = 1 {			;decompressor only needs to be setup if there
+   248  025e 207c02             		jsr .get_one_byte		;fetch barrier
+   249  0261 8504               		sta .barrier
+   250                          }
+   251                          
+   252                          !macro plus4_clock_switch_routine ~single, ~double, ~sei_addr {
+   253                          single = *
+   254                          		lda $ff13
+   255                          		and #%00000010		;Single clock already selected?
+   256                          		eor #%00000010
+   257                          		sta .bfspeed+1		;Store speed
+   258                          		lda #%00011111		;Dirty Hack: Datasette RD line output and drive LOW
+   259                          double = *
+   260                          		sta $00				;B4 always 0 after read port
+   261                          .bfspeed
+   262                          		lda #0
+   263                          		beq .clk_early_ok
+   264                          		php
+   265                          sei_addr = *
+   266                          		sei				;2
+   267                          		eor $ff13		;4
+   268                          		sta $ff13		;4 Single Clock selected
+   269                          		plp				;4 +14 clocks jitter
+   270                          .clk_early_ok	
+   271                          		rts
+   272                          }
+   273                          
+   274                          .bitfire_load_block
+   275  0263 207c02             		jsr .get_one_byte		;fetch blockaddr hi
+   276  0266 8d8602             		sta .bitfire_block_addr_hi	;where to place the block?
+   277                          
+   278  0269 207c02             		jsr .get_one_byte		;fetch blocklen
+   279                            !if (BF_DRIVE = 1541) {				;===== 1541
+   280                          		tax
+   281                          		lda #$a2			;ldx #imm
+   282                            } else {						;===== 1551
+   283  026c 8d7602             		sta	.bf51pre_evc+1
+   284  026f 4a                 		lsr
+   285  0270 9003               		bcc	+			;If length is even, OK
+   286  0272 207c02             		jsr	.get_one_byte		;If length is odd of bytes, read dummy
+   287                          +
+   288  0275 a200               .bf51pre_evc	ldx	#$00
+   289  0277 a99d               		lda	#$9d			;STA $nnmm,x opcode
+   290                          		;nop
+   291                          		;nop
+   292                          		;nop
+   293                          		;nop
+   294                            }
+   295                          
+   296                          
+   297                          .bitfire_ack_
+   298  0279 8d8402             		sta .blockpos
+   299                          
+   300                          !if BF_PLUS4_BINCOMP>0 {
+   301                            !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   302                              !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+   303                          
+   304                          		jmp .contgetbyte
+   305                          		nop
+   306                          		nop
+   307                          		
+   308                          .get_one_byte
+   309                          		jmp .get_one_byte_
+   310                          
+   311                          		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei
+   312                          
+   313                          .contgetbyte
+   314                              }
+   315                            }
+   316                          }
+   317                          
+   318                          
+   319                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   320                          		ldy #$37
+   321                          .get_one_byte
+   322                          .get_one_byte_
+   323                          		lda $dd00-$37,y
+   324                          		sty $dd02
+   325                          		lsr
+   326                          		lsr
+   327                          		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+   328                          		ldx #$3f
+   329                          
+   330                          		ora $dd00-$37,y			;can be omitted? 3 cycles overhead
+   331                          		stx $dd02
+   332                          		lsr
+   333                          		lsr
+   334                          		dec .blockpos+1			;waste 6 cycles and decrement
+   335                          
+   336                          		ora $dd00-$37,y			;now ATN is 0 and ora can happen without killing bit 3
+   337                          		sty $dd02
+   338                          		lsr
+   339                          		asr #$7e			;clear carry for free
+   340                          		sta .nibble + 1
+   341                          		lda #$c0
+   342                          
+   343                          		and $dd00-$37,y			;can be omitted? 2 cycles overhead
+   344                          		stx $dd02
+   345                          .nibble		ora #$00			;also adc could be used, or sbc -nibble?
+   346                          } else {
+   347                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+   348                          		ldy	#%11001100
+   349                              !if BF_PLUS4_BINCOMP>0 {
+   350                          .get_one_byte_
+   351                              } else {
+   352                          .get_one_byte
+   353                          .get_one_byte_
+   354                              }
+   355                          		lda	$01
+   356                          		sty	$01
+   357                          		lsr
+   358                          		lsr
+   359                          		stx	.blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+   360                          		ldx	#%11001000
+   361                          		;nop
+   362                          
+   363                          		eor	$01
+   364                          		stx	$01
+   365                          		lsr
+   366                          		lsr
+   367                          		dec	.blockpos+1			;waste 6 cycles and decrement
+   368                          		;nop
+   369                          
+   370                          		eor	$01
+   371                          		sty	$01
+   372                          		lsr
+   373                          		lsr
+   374                          		nop
+   375                          		nop
+   376                          		eor	#%00001110			;Flip back the wrong bits
+   377                          
+   378                          		eor	$01
+   379                          		stx	$01
+   380                          		clc
+   381                            }
+   382                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) {
+   383                          		jsr .bfwait12                   ;+12 cycles
+   384                          		ldy #%11001100
+   385                          .get_one_byte
+   386                          .get_one_byte_
+   387                          		lda $01
+   388                          		sty $01
+   389                          		lsr
+   390                          		lsr
+   391                          		sta .store_recb_b1+1
+   392                          		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
+   393                          		ldx #%11001000
+   394                          
+   395                          		pha						;+11 cycles
+   396                          		pla
+   397                          !if BF_PLUS4_BINCOMP>0 {
+   398                          		dop #0	
+   399                          		dop #0	
+   400                          } else {
+   401                          		nop
+   402                          		nop
+   403                          }
+   404                          
+   405                          		lda $01
+   406                          		stx $01
+   407                          		and #%11000000
+   408                          .store_recb_b1	ora #$00
+   409                          		lsr
+   410                          		lsr
+   411                          		sta .store_recb_b2+1
+   412                          		dec .blockpos+1			;waste 6 cycles and decrement
+   413                          
+   414                          		pha						;+7 cycles
+   415                          		pla
+   416                          
+   417                          		lda $01
+   418                          		sty $01
+   419                          		and #%11000000
+   420                          .store_recb_b2	ora #$00
+   421                          		lsr
+   422                          		lsr
+   423                          		sta .store_recb_b3+1
+   424                          
+   425                          		pha						;+11 cycles
+   426                          		pla
+   427                          		nop
+   428                          !if BF_PLUS4_BINCOMP>0 {
+   429                          		dop #0	
+   430                          } else {
+   431                          		nop
+   432                          }
+   433                          
+   434                          		lda $01
+   435                          		stx $01
+   436                          		and #%11000000
+   437                          .store_recb_b3	ora #$00
+   438                          
+   439                          		jsr .bfwait12			;+12 cycles
+   440                          
+   441                          		clc
+   442                            }
+   443                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
+   444                          .get_one_byte	;nop
+   445                          .get_one_byte_	;lda	$fef0-$ff,y
+   446  027c adf0fe             		lda	$fef0
+   447  027f 8ef4fe             		stx	$fef4
+   448  0282 ca                 		dex
+   449  0283 18                 		clc
+   450                            }
+   451                          }
+   452                          
+   453                          .blockpos
+   454                            !if (BF_DRIVE = 1541) {				;===== 1541
+   455                          		ldx #$00
+   456                            }
+   457                          .bitfire_block_addr_hi = * + 2
+   458                          bitfire_load_addr_lo = * + 1
+   459  0284 9d0bb0             		sta $b00b,x
+   460                          		;could also use sta ($xx),y and waste one cycle less on first lda $dd00 - $37,y
+   461                          		;y should be lowbyte? or work on iny/dey?
+   462  0287 d0f3               		bne .get_one_byte_		;78 cycles per loop
+   463                          
+   464                          		;XXX TODO to enable loading of partial start sectors: x can be set on prembale, as well as initial load_addr_lo and blocksize? but we would need to receive with incrementing x?
+   465                          
+   466                          !if >* != >.get_one_byte { !error "getloop code crosses page!" }
+   467                          
+   468                          !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   469                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+   470                            		lda	#%00001111		;Datasette RD line switch to input
+   471                            		jsr .bfdblclock
+   472                            }
+   473                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
+   474                          		;clc
+   475                            }
+   476                          }
+   477                          .poll_end
+   478                          !if BITFIRE_DECOMP = 0 {
+   479                          		;bcc .pollblock
+   480                          		bcs *+5
+   481                          		jmp .pollblock
+   482                          }
+   483  0289 60                 		rts
+   484                          
+   485                          !if BF_PLUS4_BINCOMP = 0 {
+   486                            !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   487                              !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+   488                          
+   489                          		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei
+   490                          
+   491                              }
+   492                            }
+   493                          }
+   494                          
+   495                          !if (BF_PLUS4_BINCOMP>0 and BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) {
+   496                          
+   497                          		nop
+   498                          		nop
+   499                          		nop
+   500                          		nop
+   501                          		nop
+   502                          }
+   503                          
+   504                          !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   505  028a 208d02             .bfwait24       jsr .bfwait12
+   506  028d 60                 .bfwait12       rts				;JSR + RTS: 12 cycles
+   507                          
+   508                          }
+   509                          
+   510                          
+   511                          !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+   512                          
+   513                            !if (BF_DRIVE = 1541) {		;===== 1541
+   514                          
+   515                          bitfire_send_byte_
+   516                          		sta .filenum			;save value
+   517                          		ldx #7
+   518                          		lda #%11001001			;ANT/CLK drive Off, DATA drive On
+   519                          .bit_loop
+   520                          		lsr .filenum
+   521                          		bcc +
+   522                          		and #%11111110
+   523                          +
+   524                          		eor #%00000011			;DATA/CLK drive changed
+   525                          		sta $01
+   526                          		ora #%00000001
+   527                          		jsr .bfwait24			;24 cycles
+   528                          		jsr .bfwait12			;12 cycles
+   529                          		dex
+   530                          		bpl .bit_loop
+   531                          		rts
+   532                          
+   533                            } else {						;===== 1551
+   534                          
+   535                          .bitfire_send_byte_
+   536  028e 8df0fe             		sta	$fef0				;data to TCBM data port register
+   537  0291 a900               		lda	#%00000000
+   538  0293 8504               		sta	.filenum			;Barrier = 0
+   539  0295 2cf2fe             		bit	$fef2
+   540  0298 30fb               		bmi	*-3					;wait until DAV Lo
+   541  029a a2ff               		ldx	#%11111111
+   542  029c 8ef3fe             		stx	$fef3				;switch TCBM data to output on plus/4 side
+   543  029f 8df4fe             		sta	$fef4				;ST0=In, 1
+   544  02a2 208d02             		jsr	.bfwait12			;12 cycles
+   545  02a5 8df3fe             		sta	$fef3				;TCBM data DDR set to IN
+   546  02a8 8ef0fe             		stx	$fef0			
+   547  02ab a901               		lda	#%00000001
+   548  02ad 8df4fe             		sta	$fef4				;ST0=Out, 0, cycle end in 1551 side
+   549  02b0 4c8d02             		jmp	.bfwait12
+   550                          
+   551                          .bitfire_send_byte51_
+   552  02b3 208e02             		jsr .bitfire_send_byte_
+   553  02b6 2cf2fe             		bit	$fef2
+   554  02b9 10fb               		bpl	*-3			;wait until DAV Hi
+   555  02bb 60                 		rts
+   556                            }
+   557                          }
+   558                          
+   559                          !if  BF_DRIVE = 1551 {
+   560                            !if BF_PLUS4_BINCOMP>0 {  
+   561  02bc ea                 	nop
+   562  02bd ea                 	nop
+   563  02be ea                 	nop
+   564  02bf ea                 	nop
+   565  02c0 ea                 	nop
+   566  02c1 ea                 	nop
+   567  02c2 ea                 	nop
+   568  02c3 ea                 	nop
+   569  02c4 ea                 	nop
+   570  02c5 ea                 	nop
+   571  02c6 ea                 	nop
+   572  02c7 ea                 	nop
+   573                          bitfire_send_byte_
+   574  02c8 4c8e02             	jmp .bitfire_send_byte_
+   575                          
+   576                            } else {
+   577                          
+   578                          bitfire_send_byte_ = .bitfire_send_byte_
+   579                          
+   580                            }
+   581                          }
+   582                          
+   583                          !if BITFIRE_DECOMP = 1 {
+   584                          
+   585                          !if BF_PLUS4_BINCOMP>0 AND BF_DRIVE = 1551 {
+   586                          
+   587  02cb ea                 	nop
+   588  02cc ea                 	nop
+   589  02cd ea                 	nop
+   590  02ce ea                 	nop
+   591  02cf ea                 	nop
+   592  02d0 ea                 	nop
+   593  02d1 ea                 	nop
+   594  02d2 ea                 	nop
+   595  02d3 ea                 	nop
+   596  02d4 ea                 	nop
+   597  02d5 ea                 	nop
+   598  02d6 ea                 	nop
+   599  02d7 ea                 	nop
+   600  02d8 ea                 	nop
+   601  02d9 ea                 	nop
+   602  02da ea                 	nop
+   603  02db ea                 	nop
+   604  02dc ea                 	nop
+   605  02dd ea                 	nop
+   606  02de ea                 	nop
+   607  02df ea                 	nop
+   608  02e0 ea                 	nop
+   609  02e1 ea                 	nop
+   610  02e2 ea                 	nop
+   611  02e3 ea                 	nop
+   612                          }
+   613                          
+   614                          ;---------------------------------------------------------------------------------
+   615                          ; REFILL ROUTINES
+   616                          ;---------------------------------------------------------------------------------
+   617                          
+   618                          .lz_lentab = * - 1
+   619                          		;short offset init values
+   620                          		;!byte %00000000			;2
+   621  02e4 df                 		!byte %11011111			;0
+   622  02e5 fb                 		!byte %11111011			;1
+   623  02e6 80                 		!byte %10000000			;3
+   624                          
+   625                          		;long offset init values
+   626  02e7 ef                 		!byte %11101111			;offset 0
+   627  02e8 fd                 		!byte %11111101			;offset 1
+   628  02e9 80                 		!byte %10000000			;offset 2
+   629  02ea f0                 		!byte %11110000			;offset 3
+   630                          
+   631                          ;---------------------------------------------------------------------------------
+   632                          ; REFILL ROUTINES
+   633                          ;---------------------------------------------------------------------------------
+   634                          
+   635                          .lz_refill_bits
+   636                          bitfire_lz_sector_ptr1	= * + 1
+   637                          bitfire_load_addr_hi = * + 2
+   638  02eb bcefbe             		ldy $beef,x
+   639                          						;store bits? happens on all calls, except when a whole literal is fetched
+   640  02ee 9004               		bcc +				;only store lz_bits if carry is set (in all cases, except when literal is fetched for offset)
+   641  02f0 8405               		sty .lz_bits
+   642  02f2 2605               		rol .lz_bits
+   643                          +
+   644  02f4 e8                 		inx
+   645  02f5 d01a               		bne .lz_same_page
+   646                          
+   647                          .lz_next_page					;/!\ ATTENTION things entered here as well during depacking
+   648  02f7 eeed02             		inc bitfire_lz_sector_ptr1 + 1	;use inc to keep A untouched!
+   649  02fa ee5503             		inc bitfire_lz_sector_ptr2 + 1
+   650                          .lz_next_page_
+   651                          .lz_skip_fetch
+   652  02fd 08                 		php				;turned into a rts in case of standalone decomp
+   653  02fe 48                 		pha				;preserve Z, carry, A and Y, needed depending on call
+   654  02ff 840a               		sty .lz_tmp
+   655                          .lz_fetch_sector				;entry of loop
+   656  0301 203502             		jsr .pollblock			;fetch another block, returns with x = 0
+   657  0304 b007               		bcs .lz_fetch_eof		;eof? yes, finish, only needed if files reach up to $ffxx -> barrier will be 0 then and upcoming check will always hit in -> this would suck
+   658  0306 aded02             		lda bitfire_lz_sector_ptr1 + 1	;get current depack position
+   659  0309 c504               		cmp .barrier			;next pending block/barrier reached? If barrier == 0 this test will always loop on first call, no matter what .bitfire_lz_sector_ptr has as value \o/
+   660                          						;on first successful .pollblock they will be set with valid values and things will be checked against correct barrier
+   661  030b b0f4               		bcs .lz_fetch_sector		;already reached, loop
+   662                          .lz_fetch_eof					;not reached, go on depacking
+   663  030d a40a               		ldy .lz_tmp			;restore regs + flags
+   664  030f 68                 		pla
+   665  0310 28                 		plp
+   666                          .lz_same_page
+   667  0311 60                 		rts
+   668                          
+   669                          !if BITFIRE_FRAMEWORK = 1 {
+   670                          link_load_next_comp
+   671  0312 a9ef               		lda #BITFIRE_LOAD_NEXT
+   672                          link_load_comp
+   673                          }
+   674                          
+   675                          bitfire_loadcomp_
+   676                          !if (BF_DRIVE = 1541) {
+   677                          		jsr bitfire_send_byte_		;returns now with x = $ff
+   678                          } else {
+   679  0314 20b302             		jsr .bitfire_send_byte51_
+   680                          }
+   681  0317 a908               		lda #$08			;enable pollblock/fetch_sector calls (php)
+   682  0319 a00e               		ldy #.lz_poll-.lz_skip_poll-2	;currently ldy #$0b
+   683                          		;ldx #$ff			;force to load a new sector upon first read, first read is a bogus read and will be stored on lz_bits, second read is then the really needed data
+   684  031b d006               		bne .loadcompd_entry		;load + decomp file
+   685                          
+   686                          
+   687                          !if BITFIRE_NMI_GAPS = 1 & BITFIRE_DEBUG = 0 {
+   688                          		;!ifdef .lz_gap2 {
+   689                          		;	!warn .lz_gap2 - *, " bytes left until gap2"
+   690                          		;}
+   691                          !align 255,2
+   692                          .lz_gap2
+   693                          !if .lz_gap2 - .lz_gap1 > $0100 {
+   694                          		!error "code on first page too big, second gap does not fit!"
+   695                          }
+   696                          		nop
+   697                          		nop
+   698                          		nop
+   699                          }
+   700                          
+   701                          bitfire_decomp_
+   702                          .lz_end_of_file	= * + 1				;point to rts, this is always reachable \o/
+   703  031d a960               		lda #$60			;disable calls
+   704  031f a019               		ldy #.lz_skip_end-.lz_skip_poll-2	;#$17
+   705  0321 a200               		ldx #$00			;start with first byte of block
+   706                          .loadcompd_entry
+   707  0323 8dfd02             		sta .lz_skip_fetch
+   708  0326 8ce003             		sty .lz_skip_poll + 1
+   709                          		;address stuff is already set by loadraw_/pollblock
+   710                          
+   711                          ;---------------------------------------------------------------------------------
+   712                          ; DECRUNCHER
+   713                          ;---------------------------------------------------------------------------------
+   714                          
+   715                          .lz_decrunch
+   716                          -
+   717  0329 20eb02             		jsr .lz_refill_bits		;fetch depack addr
+   718  032c 9405               		sty .lz_dst-1,x			;x = 0, x = 1 and x = 2
+   719                          !if BITFIRE_DECOMP_ZERO_OVERLAP = 0 {
+   720                          		cpx #$02
+   721                          } else {
+   722  032e e004               		cpx #$04
+   723                          }
+   724  0330 d0f7               		bne -
+   725                          		;sec				;set for free by last compare
+   726                          .lz_type_refill
+   727  0332 20eb02             		jsr .lz_refill_bits		;refill bit buffer .lz_bits
+   728                          
+   729                          		;******** Start the next match/literal run ********
+   730                          .lz_type_check
+   731  0335 9038               		bcc .lz_do_match
+   732  0337 f0f9               		beq .lz_type_refill		;we will fall through on entry
+   733                          
+   734                          		;******** Process literal run ********
+   735                          
+   736  0339 a900               		lda #$00
+   737                          -
+   738  033b 2a                 		rol				;-> a = $01 after first round
+   739  033c 0605               		asl .lz_bits
+   740  033e d003               		bne *+5
+   741  0340 20eb02             		jsr .lz_refill_bits		;kills y
+   742  0343 9009               		bcc .lz_lrun_gotten
+   743                          
+   744  0345 0605               		asl .lz_bits
+   745  0347 d0f2               		bne -
+   746  0349 20eb02             		jsr .lz_refill_bits
+   747  034c d0ed               		bne -
+   748                          
+   749                          .lz_lrun_gotten
+   750  034e 8d6003             		sta .lz_lcopy_len		;Store LSB of run-length
+   751  0351 a000               		ldy #$00
+   752                          .lz_lcopy
+   753                          bitfire_lz_sector_ptr2	= * + 1			;Copy the literal data, forward or overlap is getting a pain in the ass.
+   754  0353 bdefbe             		lda $beef,x
+   755  0356 9106               		sta (.lz_dst),y
+   756  0358 e8                 		inx
+   757  0359 d003               		bne +
+   758  035b 20f702             		jsr .lz_next_page
+   759                          +
+   760  035e c8                 		iny
+   761                          .lz_lcopy_len = * + 1
+   762  035f c000               		cpy #$00
+   763  0361 d0f0               		bne .lz_lcopy
+   764                          
+   765  0363 98                 		tya
+   766  0364 f075               		beq .lz_maximum			;maximum literal run, bump sector pointers and so on and force new type bit
+   767                          						;XXX TODO can we reuse the same code? In one case continue with match, in other case redecide
+   768  0366 18                 		clc
+   769  0367 6506               		adc .lz_dst
+   770  0369 8506               		sta .lz_dst
+   771  036b 9002               		bcc .lz_do_match
+   772  036d e607               		inc .lz_dst+1
+   773                          						;no need for a type bit, after each literal a match follows, except for maximum runlength literals
+   774                          
+   775                          		;******** Process match ********
+   776                          
+   777                          .lz_do_match
+   778  036f a901               		lda #$01			;this could be made shorter by using the last bitfetch of the upcoming loop and restoring the carry again by a cmp #$02. Saves bytes, but makes things slower, as eof check is also done with all short matches then
+   779                          
+   780  0371 0605               		asl .lz_bits			;first length bit (where a one identifies
+   781  0373 d003               		bne *+5				;a two-byte match)
+   782  0375 20eb02             		jsr .lz_refill_bits
+   783  0378 9014               		bcc .lz_get_offs		;all done, length is 2, skip further bitfetches (and eof check)
+   784                          -
+   785  037a 0605               		asl .lz_bits
+   786  037c d003               		bne *+5
+   787  037e 20eb02             		jsr .lz_refill_bits
+   788  0381 2a                 		rol
+   789                          
+   790  0382 0605               		asl .lz_bits
+   791  0384 d003               		bne *+5
+   792  0386 20eb02             		jsr .lz_refill_bits
+   793  0389 90ef               		bcc -
+   794                          .lz_got_len
+   795  038b a8                 		tay				;XXX TODO could this be placed elsewhere to make the tay obsolete?
+   796  038c f090               		beq .lz_end_of_file		;A 257-byte (=>$00) run serves as a sentinel, but not with zero-overlap, except when depacking from a non inplace address, then it is still appended
+   797                          .lz_get_offs
+   798  038e 8dd103             		sta .lz_mcopy_len		;store length at final destination
+   799                          
+   800  0391 a9c0               		lda #%11000000			;fetch 2 more prefix bits
+   801  0393 2a                 		rol				;previous bit is still in carry \o/
+   802                          -
+   803  0394 0605               		asl .lz_bits
+   804  0396 d003               		bne *+5
+   805  0398 20eb02             		jsr .lz_refill_bits
+   806  039b 2a                 		rol
+   807  039c b0f6               		bcs -
+   808                          
+   809  039e f010               		beq .lz_8_and_more		;0 + 8 bits to fetch, branch out before table lookup to save a few cycles and one byte in the table, also save complexity on the bitfetcher
+   810  03a0 a8                 		tay
+   811  03a1 b9e302             		lda .lz_lentab,y
+   812                          -						;same as above
+   813  03a4 0605               		asl .lz_bits			;XXX same code as above, so annoying :-(
+   814  03a6 d003               		bne *+5
+   815  03a8 20eb02             		jsr .lz_refill_bits
+   816  03ab 2a                 		rol
+   817  03ac b0f6               		bcs -
+   818                          
+   819  03ae 300b               		bmi .lz_less_than_8		;either 3,4,6 or 7 bits fetched -> highbyte will be $ff
+   820                          .lz_8_and_more
+   821  03b0 20eb02             		jsr .lz_refill_bits
+   822  03b3 49ff               		eor #$ff			;5 of 13, 2 of 10, 0 of 8 bits fetched as highbyte, lowbyte still to be fetched
+   823  03b5 850a               		sta .lz_tmp			;XXX this is a pain in the arse that A and Y need to be swapped :-(
+   824  03b7 98                 		tya
+   825  03b8 a40a               		ldy .lz_tmp
+   826  03ba 0c                 		top
+   827                          .lz_less_than_8
+   828  03bb a0ff               		ldy #$ff			;XXX TODO silly, y is set twice in short case
+   829  03bd 6506               		adc .lz_dst			;subtract offset from lz_dst
+   830  03bf 8dcc03             		sta .lz_m+1
+   831  03c2 98                 		tya				;hibyte
+   832  03c3 6507               		adc .lz_dst+1
+   833  03c5 8dcd03             		sta .lz_m+2
+   834                          
+   835  03c8 a0ff               		ldy #$ff			;The copy loop. This needs to be run
+   836                          						;forwards since RLE-style matches can overlap the destination
+   837                          .lz_mcopy
+   838  03ca c8                 		iny
+   839  03cb b9cefa             .lz_m		lda $face,y			;copy one byte
+   840  03ce 9106               		sta (.lz_dst),y
+   841                          .lz_mcopy_len	= * + 1
+   842  03d0 c0ff               		cpy #$ff
+   843  03d2 d0f6               		bne .lz_mcopy
+   844                          
+   845  03d4 98                 		tya				;advance destination pointer
+   846                          ;		sec				;XXX TODO carry set = type check needed, cleared (literal) = match follows anyway
+   847  03d5 6506               		adc .lz_dst
+   848  03d7 8506               		sta .lz_dst
+   849                          
+   850                          !if BITFIRE_DECOMP_ZERO_OVERLAP = 0 {
+   851                          .lz_skip_poll	bcc +
+   852                          .lz_maximum	inc .lz_dst+1			;this is also used by maximum length
+   853                          		bcs .lz_skip_end
+   854                          +
+   855                          
+   856                          } else {
+   857  03d9 9002               		bcc +				;proceed to check
+   858                          .lz_maximum
+   859  03db e607               		inc .lz_dst+1			;advance hi byte
+   860                          ;		lda .lz_dst			;if entering via .lz_maximum, a = 0, so we would pass the following check only if the endadress is @ $xx00
+   861                          +						;if so, the endaddress can't be $xx00 and the highbyte check will fail, as we just successfully wrote a literal with type bit, so the end address must be greater then the current lz_dst, as either another literal or match must follow. Can you still follow me?! :-D
+   862  03dd 4508               		eor .lz_end			;check end address
+   863  03df d00e               .lz_skip_poll	bne .lz_poll			;all okay, poll for a new block
+   864                          
+   865  03e1 4507               		eor .lz_dst+1			;check highbyte
+   866  03e3 4509               		eor .lz_end+1
+   867  03e5 d013               		bne .lz_skip_end		;skip poll, so that only one branch needs to be manipulated
+   868                          		;sta .barrier			;clear barrier and force to load until EOF, XXX does not work, but will at least force one additional block before leaving as barrier will be set again upon next block being fetched. Will overlap be > than 2 blocks? most likely not? CRAP, tony taught me that there is /o\
+   869  03e7 a9ff               		lda #$ff
+   870  03e9 8ded02             		sta bitfire_load_addr_hi	;needed if the barrier method will not work out, plain jump to poll loop will fail on stand alone depack?
+   871  03ec 4cfd02             		jmp .lz_next_page_		;load any remaining literal blob if there, or exit with rts in case of plain decomp (rts there instead of php). So we are forced until either the sector_ptr reaches $00xx or EOF happens, so nothing can go wrong
+   872                          						;XXX TODO could be beq .lz_next_page_ but we get into trouble with 2nd nmi gap then :-(
+   873                          }
+   874                          
+   875                          .lz_poll
+   876                          
+   877                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   878                          		;XXX TODO can be omitted as done in pollblock, but a tad faster this way
+   879                          		bit $dd00
+   880                          		bvs .lz_skip_end
+   881                          } else {
+   882                            !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC)) {	;=====	1541
+   883                          		bit	$01
+   884                          		bvs .lz_skip_end
+   885                            }
+   886                            !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
+   887                              !if BF_PLUS4_BINCOMP = 0 {
+   888                          		bit	$fef0
+   889                          		bvs .lz_skip_end
+   890                              } else {
+   891  03ef 4cf303             		jmp *+4
+   892  03f2 ea                 		nop
+   893                              }
+   894                            }
+   895                          }
+   896                          
+   897  03f3 860a               		stx .lz_tmp			;save x, lz_tmp is available at that moment
+   898                          !if BF_DRIVE = 1551 and BF_PLUS4_BINCOMP>0 {
+   899  03f5 203502             		jsr .pollblock
+   900                          } else {
+   901                          		jsr .poll_start			;yes, fetch another block
+   902                          }
+   903  03f8 a60a               		ldx .lz_tmp			;restore x
+   904                          .lz_skip_end
+   905                          						;literals needing an explicit type bit
+   906  03fa 0605               		asl .lz_bits			;fetch next type bit
+   907  03fc 4c3503             		jmp .lz_type_check
+   908                          						;XXX TODO refill_bits -> do no shifting yet, but do in code, so we could reuse the asl ?!
+   909                          }	;endif DECOMP
+   910                          
+   911                          !if BITFIRE_AUTODETECT = 1 {
+   912                          link_chip_types
+   913                          link_sid_type			;%00000001	;bit set = new, bit cleared = old
+   914                          !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+   915                          link_cia1_type			;%00000010
+   916                          link_cia2_type			;%00000100
+   917                          }
+   918  03ff 00                 		!byte $00
+   919                          }
+   920                          
+   921                          !if BF_PLUS4_BINCOMP = 2 {
+   922                          bitfire_plus4_swap_receiver:
+   923                          
+   924                          !if BITFIRE_DECOMP = 1 {
+   925                          .dest = BITFIRE_RESIDENT_ADDR + 110 	;this is based on binary comparison results, don't touch
+   926                          .swap_data_len = 195-110+1
+   927                          } else {
+   928                          .dest = BITFIRE_RESIDENT_ADDR + 94 	;this is based on binary comparison results, don't touch
+   929                          .swap_data_len = 184-94+1
+   930                          }
+   931                          
+   932                          	ldx #.swap_data_len
+   933                          -
+   934                          	lda .dest-1,x
+   935                          	pha
+   936                          	lda .swap_data-1,x
+   937                          	sta .dest-1,x
+   938                          	pla
+   939                          	sta .swap_data-1,x
+   940                          	dex
+   941                          	bne -
+   942                          	
+   943                          	lda .poll_start
+   944                          	eor # $20 xor $0c	;jsr vs. nop
+   945                          	sta .poll_start
+   946                          	rts
+   947                          	
+   948                          .swap_data:
+   949                          
+   950                          !if BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC {
+   951                          !bin "resident_p4_41dc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+   952                          } else {
+   953                          !bin "resident_p4_41sc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+   954                          }
+   955                          
+   956                          }
+   957                          
+   958                          bitfire_resident_size = * - BITFIRE_RESIDENT_ADDR
+   959                          }	;!zone resident

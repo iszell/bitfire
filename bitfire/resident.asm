@@ -14,13 +14,6 @@
 .lz_end		= BITFIRE_ZP_ADDR + 4
 .lz_tmp		= BITFIRE_ZP_ADDR + 6
 
-;value of x after .get_one_byte
-!if BITFIRE_PLATFORM = BITFIRE_C64 {
-	.get_one_byte_x = $3f	
-} else {
-	.get_one_byte_x = %11001000
-}
-
 !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
 	BF_DRIVE = 1541
 } else {
@@ -133,10 +126,10 @@ link_decomp_under_io
 }
 }
 
-bitfire_send_byte_
-		;XXX we do not wait for the floppy to be idle, as we waste enough time with depacking or the fallthrough on load_raw to have an idle floppy
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+bitfire_send_byte_
+		;XXX we do not wait for the floppy to be idle, as we waste enough time with depacking or the fallthrough on load_raw to have an idle floppy
 		sta .filenum			;save value
 		ldx #$ff
 		lda #$ef
@@ -152,46 +145,11 @@ bitfire_send_byte_
 		bne .bit_loop			;last bit?
 						;this all could be done shorter (save on the eor #$30 and invert on floppy side), but this way we save a ldx #$ff later on, and we do not need to reset $dd02 to a sane state after transmission, leaving it at $1f is just fine. So it is worth.
 						;also enough cycles are wasted after last $dd02 write, just enough for standalone, full config and ntsc \o/
-} else {
-  !if (BF_DRIVE = 1541) {				;===== 1541
-		sta .filenum			;save value
-		ldx #7
-		lda #%11001001			;ANT/CLK drive Off, DATA drive On
-.bit_loop
-		lsr .filenum
-		bcc +
-		and #%11111110
-+
-		eor #%00000011			;DATA/CLK drive changed
-		sta $01
-		ora #%00000001
-		jsr .bfwait24			;24 cycles
-		jsr .bfwait12			;12 cycles
-		dex
-		bpl .bit_loop
-  } else {						;===== 1541
-		sta	$fef0			;data to TCBM data port register
-		lda	#%00000000
-		sta	.filenum		;Barrier = 0
-		bit	$fef2
-		bmi	*-3			;wait until DAV Lo
-		ldx	#%11111111
-		stx	$fef3			;switch TCBM data to output on plus/4 side
-		sta	$fef2			;ACK = 0, data valid on 1551 side
-		nop
-		nop
-		nop
-		nop
-		nop
-		sta	$fef3			;TCBM data DDR set to IN
-		stx	$fef0			;
-		lda	#%11000000
-		sta	$fef2			;ACK = 1, cycle ent in 1551 side
-		bit	$fef2
-		bpl	*-3			;wait until DAV Hi
-  }
-}
 		rts
+} else {
+	;This is defined elsewhere below for Plus/4.
+}
+
 
 !if BITFIRE_FRAMEWORK = 1 {
 link_load_next_raw
@@ -200,7 +158,12 @@ link_load_raw
 }
 
 bitfire_loadraw_
+!if (BF_DRIVE = 1541) {
 		jsr bitfire_send_byte_		;easy, open...
+} else {
+		jsr .bitfire_send_byte51_
+}
+
 !if BITFIRE_DECOMP = 1 {
 -
 		jsr .pollblock
@@ -216,7 +179,7 @@ bitfire_loadraw_
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bmi .poll_end			;block ready?
 } else {
-  !if (BF_DRIVE = 1541) {
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		lda	$01
 		asl				;focus on bit 7 and 6 and copy bit 7 to carry (set if floppy is idle/eof is reached)
 		bpl .poll_start
@@ -226,7 +189,7 @@ bitfire_loadraw_
 }
 		rts
 
-  } else {
+  } else {						;===== 1551
 		lda	$fef0			;TCBM data B76 = "mode"
 		asl				;focus on bit 1 and 0 and copy bit 1 to carry (set if floppy is idle/eof is reached)
 		bpl	.poll_start
@@ -246,15 +209,22 @@ bitfire_loadraw_
   }	
 }
 		lda #$60			;set rts
+  !if (BF_DRIVE = 1551) {				;===== 1551
+		;ldy	#$ff
+		ldx	#0
+  }
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits of payload possible, first two bist are cleared/unusable. Also sets an rts in receive loop
-
-!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
-  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
-		asl
+  !if (BF_DRIVE = 1551) {				;===== 1551
+  		asl
 		asl
   }
-}
 		bpl .skip_load_addr		;#$fc -> first block
+
+  !if (BF_DRIVE = 1551) {				;===== 1551
+!if (((BITFIRE_DEBUG = 1) and (BITFIRE_DECOMP = 1)) or ((BITFIRE_DEBUG = 0) and (BITFIRE_DECOMP = 0))) {
+		jsr	.get_one_byte		;get dummy BYTE, on 1551: preamble size always even number of bytes
+}
+  }
 
 !if BITFIRE_DEBUG = 1 {
 		jsr .get_one_byte		;fetch filenum
@@ -306,8 +276,24 @@ sei_addr = *
 		sta .bitfire_block_addr_hi	;where to place the block?
 
 		jsr .get_one_byte		;fetch blocklen
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		tax
 		lda #$a2			;ldx #imm
+  } else {						;===== 1551
+		sta	.bf51pre_evc+1
+		lsr
+		bcc	+			;If length is even, OK
+		jsr	.get_one_byte		;If length is odd of bytes, read dummy
++
+.bf51pre_evc	ldx	#$00
+		lda	#$9d			;STA $nnmm,x opcode
+		;nop
+		;nop
+		;nop
+		;nop
+  }
+
+
 .bitfire_ack_
 		sta .blockpos
 
@@ -339,7 +325,7 @@ sei_addr = *
 		lsr
 		lsr
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		ldx #.get_one_byte_x	;$3f
+		ldx #$3f
 
 		ora $dd00-$37,y			;can be omitted? 3 cycles overhead
 		stx $dd02
@@ -371,7 +357,7 @@ sei_addr = *
 		lsr
 		lsr
 		stx	.blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		ldx	#.get_one_byte_x			;%11001000
+		ldx	#%11001000
 		;nop
 
 		eor	$01
@@ -404,7 +390,7 @@ sei_addr = *
 		lsr
 		sta .store_recb_b1+1
 		stx .blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		ldx #.get_one_byte_x			;%11001000
+		ldx #%11001000
 
 		pha						;+11 cycles
 		pla
@@ -454,23 +440,20 @@ sei_addr = *
 
 		clc
   }
-  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
-.get_one_byte
-.get_one_byte_
-		stx	.blockpos+1			;store initial x, and in further rounds do bogus writes with correct x value anyway, need to waste 4 cycles, so doesn't matter. Saves a byte (tax + stx .blockpos+1) compared to sta .blockpos+1 + nop + nop.
-		lda	$fef2
-		eor	#%01000000
-		ldy	$fef0
-		sta	$fef2
-		dec	.blockpos+1
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
+.get_one_byte	;nop
+.get_one_byte_	;lda	$fef0-$ff,y
+		lda	$fef0
+		stx	$fef4
+		dex
 		clc
-		;jsr	.bfwait12		;+12 cycles
-		;ldx	#.get_one_byte_x			;%11001000
-		tya
   }
 }
 
-.blockpos	ldx #$00
+.blockpos
+  !if (BF_DRIVE = 1541) {				;===== 1541
+		ldx #$00
+  }
 .bitfire_block_addr_hi = * + 2
 bitfire_load_addr_lo = * + 1
 		sta $b00b,x
@@ -487,10 +470,8 @@ bitfire_load_addr_lo = * + 1
   		lda	#%00001111		;Datasette RD line switch to input
   		jsr .bfdblclock
   }
-  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
-		lda	$fef2
-		ora	#%01000000
-		sta	$fef2			;Carry not touched this routine
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
+		;clc
   }
 }
 .poll_end
@@ -526,6 +507,108 @@ bitfire_load_addr_lo = * + 1
 
 }
 
+
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+
+  !if (BF_DRIVE = 1541) {		;===== 1541
+
+bitfire_send_byte_
+		sta .filenum			;save value
+		ldx #7
+		lda #%11001001			;ANT/CLK drive Off, DATA drive On
+.bit_loop
+		lsr .filenum
+		bcc +
+		and #%11111110
++
+		eor #%00000011			;DATA/CLK drive changed
+		sta $01
+		ora #%00000001
+		jsr .bfwait24			;24 cycles
+		jsr .bfwait12			;12 cycles
+		dex
+		bpl .bit_loop
+		rts
+
+  } else {						;===== 1551
+
+.bitfire_send_byte_
+		sta	$fef0				;data to TCBM data port register
+		lda	#%00000000
+		sta	.filenum			;Barrier = 0
+		bit	$fef2
+		bmi	*-3					;wait until DAV Lo
+		ldx	#%11111111
+		stx	$fef3				;switch TCBM data to output on plus/4 side
+		sta	$fef4				;ST0=In, 1
+		jsr	.bfwait12			;12 cycles
+		sta	$fef3				;TCBM data DDR set to IN
+		stx	$fef0			
+		lda	#%00000001
+		sta	$fef4				;ST0=Out, 0, cycle end in 1551 side
+		jmp	.bfwait12
+
+.bitfire_send_byte51_
+		jsr .bitfire_send_byte_
+		bit	$fef2
+		bpl	*-3			;wait until DAV Hi
+		rts
+  }
+}
+
+!if  BF_DRIVE = 1551 {
+  !if BF_PLUS4_BINCOMP>0 {
+  !if BITFIRE_DECOMP=1 {  
+	nop
+  }
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+bitfire_send_byte_
+	jmp .bitfire_send_byte_
+
+  } else {
+
+bitfire_send_byte_ = .bitfire_send_byte_
+
+  }
+}
+
+!if BF_PLUS4_BINCOMP>0 AND BF_DRIVE = 1551 {
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+}
 
 !if BITFIRE_DECOMP = 1 {
 
@@ -591,7 +674,11 @@ link_load_comp
 }
 
 bitfire_loadcomp_
+!if (BF_DRIVE = 1541) {
 		jsr bitfire_send_byte_		;returns now with x = $ff
+} else {
+		jsr .bitfire_send_byte51_
+}
 		lda #$08			;enable pollblock/fetch_sector calls (php)
 		ldy #.lz_poll-.lz_skip_poll-2	;currently ldy #$0b
 		;ldx #$ff			;force to load a new sector upon first read, first read is a bogus read and will be stored on lz_bits, second read is then the really needed data
@@ -791,18 +878,29 @@ bitfire_lz_sector_ptr2	= * + 1			;Copy the literal data, forward or overlap is g
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		;XXX TODO can be omitted as done in pollblock, but a tad faster this way
 		bit $dd00
+		bvs .lz_skip_end
 } else {
   !if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC)) {	;=====	1541
 		bit	$01
+		bvs .lz_skip_end
   }
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;=====	1551
+    !if BF_PLUS4_BINCOMP = 0 {
 		bit	$fef0
+		bvs .lz_skip_end
+    } else {
+		jmp *+4
+		nop
+    }
   }
 }
-		bvs .lz_skip_end
 
 		stx .lz_tmp			;save x, lz_tmp is available at that moment
+!if BF_DRIVE = 1551 and BF_PLUS4_BINCOMP>0 {
+		jsr .pollblock
+} else {
 		jsr .poll_start			;yes, fetch another block
+}
 		ldx .lz_tmp			;restore x
 .lz_skip_end
 						;literals needing an explicit type bit
@@ -825,11 +923,11 @@ link_cia2_type			;%00000100
 bitfire_plus4_swap_receiver:
 
 !if BITFIRE_DECOMP = 1 {
-.dest = BITFIRE_RESIDENT_ADDR + 138 	;this is based on binary comparison results, don't touch
-.swap_data_len = 223-138+1
+.dest = BITFIRE_RESIDENT_ADDR + 110 	;this is based on binary comparison results, don't touch
+.swap_data_len = 195-110+1
 } else {
-.dest = BITFIRE_RESIDENT_ADDR + 122 	;this is based on binary comparison results, don't touch
-.swap_data_len = 212-122+1
+.dest = BITFIRE_RESIDENT_ADDR + 94 	;this is based on binary comparison results, don't touch
+.swap_data_len = 184-94+1
 }
 
 	ldx #.swap_data_len

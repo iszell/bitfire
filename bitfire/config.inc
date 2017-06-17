@@ -9,7 +9,7 @@ BITFIRE_PLUS4 = 16
 ;The type of drive/receiver on Plus/4 
 BITFIRE_PLUS4_1541SC = 1			;Drive: 1541, Single Clock
 BITFIRE_PLUS4_1541DC = 2			;Drive: 1541, Double Clock
-BITFIRE_PLUS4_1551   = 8			;Drive: 1551, Double Clock (Not ready yet)
+BITFIRE_PLUS4_1551   = 8			;Drive: 1551, Double Clock
 
 
 !if BITFIRE_PLATFORM = BITFIRE_PLUS4 {

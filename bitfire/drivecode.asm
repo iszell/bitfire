@@ -67,7 +67,12 @@
 	BF_DRIVE = 1551
 }
 
-.STEPPING_SPEED	= $98
+!if BF_DRIVE = 1541 {
+  .STEPPING_SPEED	= $98
+} else {
+  .STEPPING_SPEED	= $90
+}
+
 
 .drivecode	= $0000
 .bootstrap	= $0700
@@ -75,7 +80,6 @@
   !if (BF_DRIVE = 1541) {				;===== 1541
 .VIA2_LED_OFF	= $f7
 .VIA2_LED_ON	= $08
-
 .VIA2_MOTOR_OFF	= $fb
 .VIA2_MOTOR_ON	= $04
   } else {						;===== 1551
@@ -123,14 +127,9 @@
 .gcr2ser	= $00		;gcr to serial-port lookuptablea -> from $08-$1f
 .bin2ser	= $80		;binary to serial data
   } else {						;===== 1551
-
-.gcr2ser	= $00		;gcr to serial-port lookuptablea -> from $08-$1f
-.bin2ser	= $80		;binary to serial data
-
-
 .z_chksum	= $02
 .z_gcrdecode	= $03		;4 bytes, GCR -> BIN decoder
-.z_transcmp	= $08
+.z_blocklen	= $08
   }
 
 
@@ -141,6 +140,8 @@
   !if (BF_DRIVE = 1541) {				;===== 1541
 .gcr_dec_lo	= $f8c0
 .gcr_dec_hi	= $f8a0
+.gcr_dec_lo_shf	= $01
+.gcr_dec_hi_shf	= $02
   } else {						;===== 1551
 gcrbin_98765xxx	=	$f70c	;/F70C/ <- "GCR-98765... > B-7654...." table (256 BYTEs, all 8th. BYTE valid)
 gcrbin_10xxx432	=	$f70c	;/F70C/ <- "GCR-10...432 > B-....3210" table (256 BYTEs, 4 * 8 BYTEs)
@@ -151,8 +152,6 @@ gcrbin_x43210xx	=	$f70d	;/F70D/ <- "GCR-.43210.. > B-....3210" table (128 BYTEs,
 gcrbin_765xxx98	=	$f729	;/F729/ <- "GCR-765...98 > B-7654...." table (256 BYTEs, 8 pcs. 4 BYTEs block)
 gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, cont.)
   }
-.gcr_dec_lo_shf	= $01
-.gcr_dec_hi_shf	= $02
 
 .DIR_SECT	= 18
 
@@ -289,6 +288,9 @@ IDLE		= %11111111
 
 		lda	#%01101111
 		sta	$00			;CPU PORT DDR: set default value
+
+		lda	#%00011100		;ST1/ST0: Input, others: default
+		sta	$4005
 		lda	#%00000000
 		sta	$4003			;TIA PORTA DDR: set TCBM DATA to Input
 		sta	$4004			;TIA PORTB DDR: Read datas from disk
@@ -824,31 +826,43 @@ readdisk_1551	sta	.rd51_markcmp+1
 !if >*-1 != >.preloop {
 	!error "preloop not in one page! Overlapping bytes: ", * & 255
 }
-  } else {						;=====	1551
-		lda	$4002
-		and	#%10000000
-		sta	.z_transcmp		;Only DAV line interesting
-
-		lda	.preamble_lo
+  } else {						;===== 1551
+		lda	.preamble_lo			;Read preamble BY0
 		ora	#%11000000			;6 valid bits send to 1st. preamble BYTE
 		and	#BLOCK_READY & BUSY
-		sta	$4000
+		tax					;READY to send
 		iny
-.preloop	ldx	.preamble_lo,y
-		lda	$4002
-		and	#%10000000
-		cmp	.z_transcmp
-		beq	*-7
-		stx	$4000
-		sta	.z_transcmp
+		lda	#%00000001
+		stx	$4000				;BY0 to TCBMD
+		ldx	.preamble_lo,y			;Read preamble BY1
 		iny
-.pre_cmp = * + 1
+		bit	$4002
+		beq	*-3
+		stx	$4000				;BY1 to TCBMD
+
+
+.pre_cmp1 = * + 1
 		cpy	#$00
-		bne	.preloop
+		beq	.preover
+.preloop	ldx	.preamble_lo,y			;Read preamble BY2/4/6
+		iny
+		bit	$4002
+		bne	*-3
+		stx	$4000				;BY2/4/6 to TCBMD
+		ldx	.preamble_lo,y			;Read preamble BY3/5/7
+		iny
+		bit	$4002
+		beq	*-3
+		stx	$4000				;BY3/5/7 to TCBMD
+.pre_cmp2 = * + 1
+		cpy	#$00
+		bne	.preloop			;
+
+.preover
   }
 
-		ldy .blocksize
   !if (BF_DRIVE = 1541) {				;===== 1541
+		ldy .blocksize
 		ldx .lonibbles,y
 		nop
 .sendloop				;send the data block
@@ -887,27 +901,47 @@ readdisk_1551	sta	.rd51_markcmp+1
 		bmi *-3
 		sta $1800
 		rts
-  } else {						;=====	1551
-.sendloop	ldx	.lonibbles,y
-		lda	$4002
-		and	#%10000000
-		cmp	.z_transcmp
-		beq	*-7
-		stx	$4000
-		sta	.z_transcmp
-		dey
-		cpy	#$ff
-		bcc	.sendloop		;(29)
-
-		ldx	#BUSY
-		lda	$4002
-		and	#%10000000
-		cmp	.z_transcmp
-		beq	*-7
-		stx	$4000
-		sta	.z_transcmp
+  } else {						;===== 1551
+		ldy	.z_blocklen
+		ldx	.lonibbles,y
 		bit	$4002
-		bpl	*-3
+		bne	*-3
+		stx	$4000
+		dey
+		beq	.sendloop_end
+.sendloop	ldx	.lonibbles,y		;
+		bit	$4002
+		beq	*-3
+		stx	$4000
+		dey
+		ldx	.lonibbles,y
+		bit	$4002
+		bne	*-3
+		stx	$4000
+		dey
+		;beq	.sendloop_end		;(34)
+		;ldx	.lonibbles,y		;
+		;bit	$4002
+		;beq	*-3
+		;stx	$4000
+		;dey
+		;ldx	.lonibbles,y
+		;bit	$4002
+		;bne	*-3
+		;stx	$4000
+		;dey
+		bne	.sendloop		;(35)
+
+.sendloop_end	ldx	.lonibbles,y
+		bit	$4002
+		beq	*-3
+		stx	$4000
+		ldx	#BUSY
+		bit	$4002
+		bne	*-3
+		stx	$4000
+		dey
+		sec
 		rts
   }
 !if >*-1 != >.sendloop {
@@ -947,6 +981,13 @@ readdisk_1551	sta	.rd51_markcmp+1
 		beq +
 		inc .firstblock
 		jsr .preamble_add_byte	;$ff as ack byte
+
+  !if (BF_DRIVE = 1551) {				;===== 1551
+!if (((BITFIRE_DEBUG = 1) and (BITFIRE_DECOMP = 1)) or ((BITFIRE_DEBUG = 0) and (BITFIRE_DECOMP = 0))) {
+		jsr .preamble_add_byte		;If 1551: add dummy to preamble, preamble length is always even no. of bytes
+}
+  }
+
 !if BITFIRE_DEBUG = 1 {
 		lda .filenum
 		jsr .preamble_add_byte
@@ -981,6 +1022,14 @@ readdisk_1551	sta	.rd51_markcmp+1
 		jsr .preamble_add_byte	;block_addr_hi
 
 		ldx .blocksize		;set up num of bytes to be transferred
+  !if (BF_DRIVE = 1551) {				;===== 1551
+		stx	.z_blocklen
+		txa
+		lsr
+		bcs	+
+		inc	.z_blocklen	;If block length is odd number of bytes, add dummy
++
+  }
 		inx			;increase by one, as it is decreased before receiving first byte on c64
 		txa
 
@@ -1167,7 +1216,12 @@ readdisk_1551	sta	.rd51_markcmp+1
 .load_wanted_blocks			;read and transfer all blocks on wishlist
 		jsr .read_sector	;returns with current blockindex in A
 		jsr .preamble		;add blockindex and size to preamble, and handle barrier stuff there
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		sty .pre_cmp		;set preamble size
+  } else {						;===== 1551
+		sty .pre_cmp1		;set preamble size
+		sty .pre_cmp2		;set preamble size
+  }
 		jsr .send_block		;exits with y = $ff and carry set
 		dec .blocks_on_list	;last block on wishlist?
 		bne .load_wanted_blocks
@@ -1376,12 +1430,13 @@ readdisk_1551	sta	.rd51_markcmp+1
 		lda	$4002
 		and	#%00010111	;ACK=0: TCBM DATA input on 1551 side
 		sta	$4002
-
+		lda	#%00000001
 		bit	$4002		;DAV check
-		bmi	*-3
-		lda	$4000		;Read TCBM data
+		beq	*-3
+		ldx	$4000		;Read TCBM data
 		bit	$4002		;DAV check
-		bpl	*-3
+		bne	*-3
+		txa
 		rts
   }
 
