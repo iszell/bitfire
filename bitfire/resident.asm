@@ -53,11 +53,12 @@ link_frame_count
 		nop
 }
 
+
 !if BITFIRE_FRAMEWORK = 1 {
 !if BITFIRE_FRAMEWORK_BASEIRQ = 1 {
 link_player
 		pha
-!if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+!if ((BF_DRIVE = 1541 and BF_PLUS4_BINCOMP>0) or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
 		lda $ff13
 		pha
 		and #%11111101
@@ -87,12 +88,28 @@ link_player
 		tax
 		pla
 		tay
-!if BITFIRE_PLATFORM = BITFIRE_PLUS4 and (BF_PLUS4_BINCOMP>0 or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
+!if ((BF_DRIVE = 1541 and BF_PLUS4_BINCOMP>0) or BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
 		pla
 		sta $ff13
 }
 		pla
 		rti
+}
+
+!if (BF_DRIVE = 1551 and BF_PLUS4_BINCOMP>0) {
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 }
 
 link_music_play
@@ -558,6 +575,7 @@ bitfire_send_byte_
 
 !if  BF_DRIVE = 1551 {
   !if BF_PLUS4_BINCOMP>0 {
+
   !if BITFIRE_DECOMP=1 {  
 	nop
   }
@@ -573,7 +591,34 @@ bitfire_send_byte_
 	nop
 	nop
 bitfire_send_byte_
+
 	jmp .bitfire_send_byte_
+
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 
   } else {
 
@@ -582,33 +627,6 @@ bitfire_send_byte_ = .bitfire_send_byte_
   }
 }
 
-!if BF_PLUS4_BINCOMP>0 AND BF_DRIVE = 1551 {
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-}
 
 !if BITFIRE_DECOMP = 1 {
 
