@@ -933,8 +933,16 @@ link_sid_type			;%00000001	;bit set = new, bit cleared = old
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 link_cia1_type			;%00000010
 link_cia2_type			;%00000100
+} else {
+	link_drive_type
 }
+
+!if BF_DRIVE = 1541 {
 		!byte $00
+} else {
+		!byte BITFIRE_DRIVE_1551
+}
+
 }
 
 !if BF_PLUS4_BINCOMP = 2 {

@@ -1,34 +1,38 @@
-!src "config.inc"
 !convtab pet
 !cpu 6510
 
-!if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
-	BF_DRIVE = 1541
+!ifdef MULTI_INST {
+
+BITFIRE_PLATFORM          = 16
+BITFIRE_C64               = 64
+BITFIRE_AUTODETECT        = 1
+BITFIRE_RESIDENT_AUTOINST = 1
+
+	* = $1200
+
 } else {
-	BF_DRIVE = 1551
+
+!src "config.inc"
+
+	* = BITFIRE_INSTALLER_ADDR
 }
 
 !zone installer {
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
-.z_fa		= $ba		;Serial: Device number / KERNAL
+z_fa		= $ba		;Serial: Device number / KERNAL
 } else {
-.z_fa		= $ae		;Serial: Device number / KERNAL
-.z_usekdy	= $f9		;TCBM Listen/Talk flag
+z_fa		= $ae		;Serial: Device number / KERNAL
+z_usekdy	= $f9		;TCBM Listen/Talk flag
 }
 
 
 
-.dc_src		= $fc
-.dc_dst		= $fe
+listen		= $ffb1
+listen_sa	= $ff93
+iecout		= $ffa8
+unlisten	= $ffae
 
-.listen		= $ffb1
-.listen_sa	= $ff93
-.iecout		= $ffa8
-.unlisten	= $ffae
-
-		* = BITFIRE_INSTALLER_ADDR
-		!src "loader_acme.inc"
 .init_inst
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -44,19 +48,19 @@
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #8
-		sta .z_fa
+		sta z_fa
 		;jmp do_install
 
 		ldx #4
 -
-		jsr .open_w_15
+		jsr open_w_15
 		bmi +
 		inc .iec_units
-		lda .z_fa
+		lda z_fa
 		sta .my_drive
-		jsr .unlisten
+		jsr unlisten
 +
-		inc .z_fa
+		inc z_fa
 		dex
 		bne -
 .iec_units = * + 1
@@ -73,38 +77,38 @@
 .do_install
 .my_drive = * + 1
 		lda #$08
-		sta .z_fa
+		sta z_fa
 } else {
 		lda	#0
-		sta	.z_usekdy
-		lda	.z_fa		;Read previously used device number
+		sta	z_usekdy
+		lda	z_fa		;Read previously used device number
 		bne	+
 		lda	#8		;If not used any device, check 8
-		sta	.z_fa
-+		jsr	.open_w_15
+		sta	z_fa
++		jsr	open_w_15
 		bmi	+		;Drive not present? Hm...
-		lda	.z_fa
+		lda	z_fa
 		sta	.my_drive
-		bit	.z_usekdy	;Drive on TCBM bus?
+		bit	z_usekdy	;Drive on TCBM bus?
 		php
-		jsr	.unlisten
+		jsr	unlisten
 		plp
 		bmi	.do_install
 
 +		lda	#8		;Start check cycle in device 8
-		sta	.z_fa
+		sta	z_fa
 		ldx	#4
 -		lda	#0
-		sta	.z_usekdy
-		jsr	.open_w_15
+		sta	z_usekdy
+		jsr	open_w_15
 		bmi	++
-		bit	.z_usekdy
+		bit	z_usekdy
 		bmi	+
 		inc	.iec_units
-+		lda	.z_fa
++		lda	z_fa
 		sta	.my_drive
-		jsr	.unlisten
-++		inc	.z_fa
+		jsr	unlisten
+++		inc	z_fa
 		dex
 		bne	-
 .iec_units = * + 1
@@ -120,14 +124,24 @@
 .do_install
 .my_drive = * + 1
 		lda	#$08
-		sta	.z_fa
-
-
-
+		sta	z_fa
 
 .startinstall
 
 }
+
+
+!ifndef MULTI_INST {
+	!src "loader_acme.inc"
+} else {
+	!src "loader_acme_plus4_1541.inc"
+}
+
+!macro raw_installer BF_DRIVE {
+
+.dc_src		= $fc
+.dc_dst		= $fe
+
 		;install bootloader with fast m-w and onetime loader-init
 		jsr .install_bootstrap
 
@@ -148,7 +162,7 @@
 		sta $00
   } else {						;===== 1551
 		ldx	#$30
-		lda	.z_fa
+		lda	z_fa
 		cmp	#8
 		beq	+
 		ldx	#$00
@@ -375,7 +389,7 @@
 }
 
 !if BITFIRE_AUTODETECT = 1 {
-		!src "detect.asm"
+		jsr detect
 }
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda #$7f
@@ -414,19 +428,11 @@
 }
 		rts
 
-.open_w_15
-		lda .z_fa
-		jsr .listen
-		lda #$00
-		sta $90
-		lda #$6f
-		jmp .listen_sa
-
 .install_bootstrap
-		jsr .open_w_15
+		jsr open_w_15
 		lda #'i'
-		jsr .iecout
-		jsr .unlisten
+		jsr iecout
+		jsr unlisten
 		;ldx #$10
 		;jsr wait
 		;install first routines via m-w
@@ -442,25 +448,25 @@
 
 		ldx #(.bootstrap_size / $20) + 1
 .bs_loop
-		jsr .open_w_15
+		jsr open_w_15
 
 		lda #'m'
-		jsr .iecout
+		jsr iecout
 		lda #'-'
-		jsr .iecout
+		jsr iecout
 		lda #'w'
-		jsr .iecout
+		jsr iecout
 		lda .dc_dst		;target-address
-		jsr .iecout
+		jsr iecout
 		lda .dc_dst+1
-		jsr .iecout
+		jsr iecout
 		lda #$20	;payload
-		jsr .iecout
+		jsr iecout
 
 		ldy #$00
 -
 		lda (.dc_src),y
-		jsr .iecout
+		jsr iecout
 		iny
 		cpy #$20
 		bne -
@@ -479,28 +485,22 @@
 		bcc *+4
 		inc .dc_src+1
 
-		jsr .unlisten
+		jsr unlisten
 
 		dex
 		bne .bs_loop
 
 		;now execute installer
-		jsr .open_w_15
+		jsr open_w_15
 
 		;ldx #$00
 -
 		lda .me_code,x
-		jsr .iecout
+		jsr iecout
 		inx
 		cpx #$05
 		bne -
-		jmp .unlisten
-
-.pebcak
-!convtab scr {
-		!text "more than 1 drive on bus, turn off plz!"
-		!byte 0
-}
+		jmp unlisten
 
 .me_code
 !byte $4d,$2d,$45,<.bootstrap_run,>.bootstrap_run
@@ -509,6 +509,65 @@
 
 !if (BITFIRE_RESIDENT_AUTOINST != 0) {
 .res_start
-!bin "resident",,2
+
+!ifdef MULTI_INST {
+  !if (BF_DRIVE = 1541) {
+	!bin "resident_1541dc",,2
+  } else {
+	!bin "resident_1551",,2  
+  }
+} else {
+	!bin "resident",,2
 }
+
+}
+
+}	;raw_installer
+
+
+!ifdef MULTI_INST {
+
+	lda .iec_units
+	bne .inst_1541
+	jmp .inst_1551
+
+.inst_1541
+!zone inst1541 {
+		+raw_installer 1541 
+}
+
+.inst_1551
+!zone inst1551 {
+		+raw_installer 1551 
+}	
+
+} else {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
+		+raw_installer 1551
+  } else {
+		+raw_installer 1541 
+  }
+}
+
+
+.pebcak
+!convtab scr {
+		!text "more than 1 drive on bus, turn off plz!"
+		!byte 0
+}
+
+detect
+!if BITFIRE_AUTODETECT = 1 {
+		!src "detect.asm"
+		rts
+}
+
+open_w_15
+		lda z_fa
+		jsr listen
+		lda #$00
+		sta $90
+		lda #$6f
+		jmp listen_sa
+
 }

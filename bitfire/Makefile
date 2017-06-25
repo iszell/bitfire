@@ -43,7 +43,8 @@ installer.prg: installer.asm drivecode.asm request_disc.asm resident.asm detect.
 
 #This is the parametrized target for building the resident, please note $(ACME_DEFS).
 resident_p: resident.asm config.inc Makefile resident_minimal_zp.asm
-	@echo -n "Buidling resident part ->"
+	@echo "----------------------------------------------------------------------------------------"
+	@echo -n "Buidling resident part (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP)) ->"
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o resident -l resident_labels.txt resident.asm
 	@printf " Size: $$%04x\n" $$((`wc -c < resident` - 2))
 	@echo "Creating loader_acme.inc..."
@@ -72,7 +73,8 @@ drivecode : drivecode41.prg
 
 #This is the parametrized target for building the installer, please note $(ACME_DEFS).
 installer_p: installer.asm drivecode.asm request_disc.asm resident_p detect.asm config.inc Makefile resident_minimal_zp.asm
-	@echo "Buidling installer..."
+	@echo "========================================================================================"
+	@echo "Buidling installer... (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP))"
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o installer_p installer.asm
 	@rm resident_labels.txt
 
@@ -84,31 +86,31 @@ installer_c64.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_c6510.inc 	loader_c6510_c64.inc 
 	@mv loader_kickass.inc 	loader_kickass_c64.inc 
 
-installer_plus4_41sc.prg: Makefile resident.asm installer.asm config.inc
+installer_plus4_1541sc.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=0 installer_p
 	@mv installer_p $@
-	@mv loader_acme.inc 	loader_acme_plus4_41sc.inc 
-	@mv loader_c6510.inc 	loader_c6510_plus4_41sc.inc 
-	@mv loader_kickass.inc 	loader_kickass_plus4_41sc.inc 
+	@mv loader_acme.inc 	loader_acme_plus4_1541sc.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_1541sc.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_1541sc.inc 
 
-installer_plus4_41dc.prg: Makefile resident.asm installer.asm config.inc
+installer_plus4_1541dc.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=0 installer_p
 	@mv installer_p $@
-	@mv loader_acme.inc 	loader_acme_plus4_41dc.inc 
-	@mv loader_c6510.inc 	loader_c6510_plus4_41dc.inc 
-	@mv loader_kickass.inc 	loader_kickass_plus4_41dc.inc 
+	@mv loader_acme.inc 	loader_acme_plus4_1541dc.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_1541dc.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_1541dc.inc 
 
-drivediff: installer_plus4_1551.prg installer_plus4_41sc_swap.prg
-	diff loader_acme_plus4_1551.inc loader_acme_plus4.inc
 
 installer_plus4_1551.prg: Makefile resident.asm installer.asm config.inc
-	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=1 installer_p
+	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=0 installer_p
+	@mv resident resident_1551
 	@mv installer_p $@
 	@mv loader_acme.inc 	loader_acme_plus4_1551.inc 
 	@mv loader_c6510.inc 	loader_c6510_plus4_1551.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_1551.inc 
 
-installer_plus4_41sc_swap.prg: Makefile resident.asm installer.asm config.inc
+installer_plus4_1541sc_swap.prg: Makefile resident.asm installer.asm config.inc
+	@echo "========================================================================================"
 	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=1 resident_p
 	@mv resident resident_p4_41dc 
 	@mv loader_acme.inc loader_acme_p4dc.inc
@@ -118,20 +120,31 @@ installer_plus4_41sc_swap.prg: Makefile resident.asm installer.asm config.inc
 	@diff -U 0 loader_acme_p4sc.inc loader_acme_p4dc.inc || true
 	#@python cmp.py resident_p4_41sc resident_p4_41dc
 	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=2 installer_p
+	@mv resident resident_1541sc
 	@mv installer_p $@
-	@grep -v BITFIRE_PLUS4_MODE loader_acme.inc > loader_acme_plus4.inc 
-	@grep -v BITFIRE_PLUS4_MODE loader_c6510.inc > loader_c6510_plus4.inc 
-	@grep -v BITFIRE_PLUS4_MODE loader_kickass.inc > loader_kickass_plus4.inc
-	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc
+	@grep -v BITFIRE_PLUS4_MODE loader_acme.inc > loader_acme_plus4_1541.inc 
+	@grep -v BITFIRE_PLUS4_MODE loader_c6510.inc > loader_c6510_plus4_1541.inc 
+	@grep -v BITFIRE_PLUS4_MODE loader_kickass.inc > loader_kickass_plus4_1541.inc
+	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc resident_p4_41dc
 
-installer_plus4_41dc_swap.prg: installer_plus4_41sc_swap.prg
+installer_plus4_1541dc_swap.prg: installer_plus4_1541sc_swap.prg
+	@echo "========================================================================================"
 	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=2 installer_p
+	@mv resident resident_1541dc
 	@mv installer_p $@
-	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc
+	@rm loader_acme.inc loader_c6510.inc loader_kickass.inc resident_p4_41sc
 
+installer_plus4_all.prg: installer_plus4_1541sc_swap.prg installer_plus4_1541dc_swap.prg
+	@echo "========================================================================================"
+	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=1 resident_p
+	@mv resident resident_1551
+	@mv loader_acme.inc 	loader_acme_plus4_1551_bincomp.inc 
+	diff loader_acme_plus4_1551_bincomp.inc loader_acme_plus4_1541.inc || true
+	@$(ACME) $(ACMEOPT) -DMULTI_INST=1 -o installer_plus4_all.prg installer.asm
+	@cp loader_acme_plus4_1541.inc loader_acme_plus4_all.inc 
 
-installers: installer_c64.prg installer_plus4_41sc.prg installer_plus4_41dc.prg installer_plus4_1551.prg installer_plus4_41sc_swap.prg installer_plus4_41dc_swap.prg
+installers: installer_c64.prg installer_plus4_1541sc.prg installer_plus4_1541dc.prg installer_plus4_1551.prg installer_plus4_1541sc_swap.prg installer_plus4_1541dc_swap.prg installer_plus4_all.prg
 	@echo "All installers are compiled!"
 
 clean:
-	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_p4_41*c
+	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_15*

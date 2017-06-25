@@ -61,10 +61,12 @@
 ;thus it is sufficient to inflate the gcr values in that way that they are either right or left aligned
 ;-----------------------------------------
 
-!if ((BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) or (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) or (BITFIRE_PLATFORM = BITFIRE_C64)) {
-	BF_DRIVE = 1541
-} else {
+!ifndef BF_DRIVE {
+  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
 	BF_DRIVE = 1551
+  } else {
+	BF_DRIVE = 1541
+  }
 }
 
 !if BF_DRIVE = 1541 {
@@ -156,13 +158,13 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 .DIR_SECT	= 18
 
   !if (BF_DRIVE = 1541) {				;===== 1541
-BUSY		= $02
-BLOCK_READY	= $08
-IDLE		= $00
+.BUSY		= $02
+.BLOCK_READY	= $08
+.IDLE		= $00
   } else {						;===== 1551
-BUSY		= %01111111
-BLOCK_READY	= %10111111
-IDLE		= %11111111
+.BUSY		= %01111111
+.BLOCK_READY	= %10111111
+.IDLE		= %11111111
   }
 
 .bootstrap_start
@@ -221,7 +223,7 @@ IDLE		= %11111111
 
 		ldy #$00
 
-		ldx #BUSY		;signal that we are ready for transfer
+		ldx #.BUSY		;signal that we are ready for transfer
 		stx $1800
 
 		;wait for atn coming high
@@ -249,7 +251,7 @@ IDLE		= %11111111
 		inc .block+1
 		bne .get_block
 .done
-		ldx #BUSY
+		ldx #.BUSY
 		stx $1800
 
 		;wait for atn coming low
@@ -789,7 +791,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ldx .preamble_lo
 		lda .bin2ser,x
 		;and #$05
-		ora #BLOCK_READY | BUSY
+		ora #.BLOCK_READY | .BUSY
 		bne +			;will send 6 valid bits and signal block ready
 
 		;on atn going low we have alraedy first data on bus with the upcoming code
@@ -829,7 +831,7 @@ readdisk_1551	sta	.rd51_markcmp+1
   } else {						;===== 1551
 		lda	.preamble_lo			;Read preamble BY0
 		ora	#%11000000			;6 valid bits send to 1st. preamble BYTE
-		and	#BLOCK_READY & BUSY
+		and	#.BLOCK_READY & .BUSY
 		tax					;READY to send
 		iny
 		lda	#%00000001
@@ -896,7 +898,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		bcc .sendloop
 
 		;XXX carry is set here, always, might be useful somewhen
-		lda #BUSY
+		lda #.BUSY
 		bit $1800
 		bmi *-3
 		sta $1800
@@ -936,7 +938,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		bit	$4002
 		beq	*-3
 		stx	$4000
-		ldx	#BUSY
+		ldx	#.BUSY
 		bit	$4002
 		bne	*-3
 		stx	$4000
@@ -1115,8 +1117,8 @@ readdisk_1551	sta	.rd51_markcmp+1
 		lda	$4000		;TCBM input
 		eor	#$ff		;=$FF? == input on plus/4 side?
 		bne	*-5
-		lda	#BUSY
-		sta	$4000		;set status to BUSY
+		lda	#.BUSY
+		sta	$4000		;set status to .BUSY
 		lda	$4002
 		ora	#%00001000	;ACK=1: TCBM DATA output on 1551 side
 		sta	$4002
@@ -1399,7 +1401,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ldx $1800		;still locked?
 		bmi -
 .get_byte
-		ldy #BUSY		;enough time for signal to settle
+		ldy #.BUSY		;enough time for signal to settle
 .get_byte_
 		lda #$80		;execpt a whole new byte
 		sta $1800
@@ -1520,7 +1522,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 
 ;		rts
 
-end
+;end
 
 ;emit warnings only once
 !if * > $0500 { !serious "Upload code is ", * - $0500, " bytes too big!" }

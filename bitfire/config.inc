@@ -63,3 +63,5 @@ BITFIRE_IS_INCLUDED             = 1
 
 BITFIRE_SID_NEW                 = 1
 BITFIRE_CIA_NEW                 = 2
+BITFIRE_NO_SID                  = 64
+BITFIRE_DRIVE_1551              = 128

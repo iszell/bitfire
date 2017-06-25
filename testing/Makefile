@@ -2,9 +2,10 @@ ACME = acme
 ACMEOPT = -f cbm
 D64W = ../bitfire/d64write
 LZ = ../bitfire/bitnax
-INST = ../bitfire/installer_plus4_41dc_swap.prg
+EXO = ../../exomizer/exomizer2/src/exomizer
+INST = ../bitfire/installer_plus4_1541dc_swap.prg
 
-all: test_plus4_1541.d64 test_plus4_1551.d64 test_c64.d64
+all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_all.d64 test_c64.d64
 
 test_plus4_1541.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o test_4_1541.prg test.asm
@@ -15,6 +16,12 @@ test_plus4_1551.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=2 -o test_4_1551.prg test.asm
 	cp $< $@
 	$(D64W) -d $@ -s test_4_1551.prg
+
+test_plus4_all.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
+	$(ACME) $(ACMEOPT) -DTEST_PLUS4=3 -o test_4_all.prg test.asm
+	$(EXO) sfx basic -t4 -o test_4_all.exo test_4_all.prg
+	cp $< $@
+	$(D64W) -d $@ -s test_4_all.exo
 
 test_c64.d64: test.d64 $(INST_ALL) $(INST) test.asm	 ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o test_c64.prg test.asm

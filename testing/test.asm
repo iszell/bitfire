@@ -2,10 +2,13 @@
 	!src "../bitfire/loader_acme_c64.inc"	
 }
 !if TEST_PLUS4 = 1 {
-	!src "../bitfire/loader_acme_plus4.inc"
+	!src "../bitfire/loader_acme_plus4_1541.inc"
 }
 !if TEST_PLUS4 = 2 {
 	!src "../bitfire/loader_acme_plus4_1551.inc"
+}
+!if TEST_PLUS4 = 3 {
+	!src "../bitfire/loader_acme_plus4_all.inc"
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -224,10 +227,13 @@ loop:
 swap_receivers:
 
 !ifdef bitfire_plus4_swap_receiver {
+	bit link_drive_type
+	bmi +
 	jsr bitfire_plus4_swap_receiver
 	lda $ff19
 	eor #$ee
 	sta $ff19
++
 }
 	rts
 
@@ -407,8 +413,11 @@ compare:
 	!bin "../bitfire/installer_c64.prg",,2
 }
 !if TEST_PLUS4 = 1 {
-	!bin "../bitfire/installer_plus4_41dc_swap.prg",,2
+	!bin "../bitfire/installer_plus4_1541dc_swap.prg",,2
 }
 !if TEST_PLUS4 = 2 {
 	!bin "../bitfire/installer_plus4_1551.prg",,2
+}
+!if TEST_PLUS4 = 3 {
+	!bin "../bitfire/installer_plus4_all.prg",,2
 }
