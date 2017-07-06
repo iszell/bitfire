@@ -227,7 +227,6 @@ bitfire_loadraw_
 }
 		lda #$60			;set rts
   !if (BF_DRIVE = 1551) {				;===== 1551
-		;ldy	#$ff
 		ldx	#0
   }
 		jsr .bitfire_ack_		;signal that we accept data and communication direction, by basically sending 2 atn strobes by fetching a bogus byte (6 bits of payload possible, first two bist are cleared/unusable. Also sets an rts in receive loop
@@ -304,10 +303,6 @@ sei_addr = *
 +
 .bf51pre_evc	ldx	#$00
 		lda	#$9d			;STA $nnmm,x opcode
-		;nop
-		;nop
-		;nop
-		;nop
   }
 
 
@@ -458,8 +453,8 @@ sei_addr = *
 		clc
   }
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
-.get_one_byte	;nop
-.get_one_byte_	;lda	$fef0-$ff,y
+.get_one_byte	nop
+.get_one_byte_
 		lda	$fef0
 		stx	$fef4
 		dex
@@ -486,9 +481,6 @@ bitfire_load_addr_lo = * + 1
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC) {
   		lda	#%00001111		;Datasette RD line switch to input
   		jsr .bfdblclock
-  }
-  !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {	;===== 1551
-		;clc
   }
 }
 .poll_end
@@ -579,7 +571,6 @@ bitfire_send_byte_
   !if BITFIRE_DECOMP=1 {  
 	nop
   }
-	nop
 	nop
 	nop
 	nop

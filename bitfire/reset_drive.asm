@@ -9,8 +9,13 @@ bitfire_reset_drive_
                 bit $dd00
                 bpl *-3
 } else {
-		bit $01
-		bpl *-2
+  !if (BF_DRIVE = 1541) {				;===== 1541
+		bit	$01
+		bpl	*-2
+  } else {						;===== 1551
+		bit	$fef0
+		bpl	*-3
+  }
 }
 
 		;upload data

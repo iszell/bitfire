@@ -20,6 +20,7 @@ bitfire_request_disc_
 .waste
 		rts
 } else {
+  !if (BF_DRIVE = 1541) {				;===== 1541
 		;bit $01
 		;bmi *-2
 
@@ -30,6 +31,15 @@ bitfire_request_disc_
 		;wait until floppy is idle again
                 bit $01
                 bpl *-2
+  } else {						;===== 1551
+		txa
+		ldx	#0
+		dex
+		bne	*-1
+		tax
+		bit	$fef0
+		bpl	*-3
+  }
 .waste
 		rts
 }

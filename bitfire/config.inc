@@ -22,6 +22,7 @@ BITFIRE_PLUS4_1551   = 8			;Drive: 1551, Double Clock
 BITFIRE_SID = $d400
 } else {
 BITFIRE_SID = $fd40
+BITFIRE_NAE = $fd80
 }
 
 ;options for resident part
@@ -63,5 +64,6 @@ BITFIRE_IS_INCLUDED             = 1
 
 BITFIRE_SID_NEW                 = 1
 BITFIRE_CIA_NEW                 = 2
+BITFIRE_NAE_CARD                = 32
 BITFIRE_NO_SID                  = 64
 BITFIRE_DRIVE_1551              = 128

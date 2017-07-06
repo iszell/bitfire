@@ -381,7 +381,7 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 
 ;	Combined "Sector Head" / "Sector Data" read routine
 ;	This routine read the GCR stream from disk. Decode
-;	  to binary, and calculate checksum in "read-rime",
+;	  to binary, and calculate checksum in "read-time",
 ;	  on-the-fly. No any post-processing needed.
 ;	The algo inspired by original 1551 DOS, and use the
 ;	  ROM's GCR decoding tables.
@@ -921,17 +921,6 @@ readdisk_1551	sta	.rd51_markcmp+1
 		bne	*-3
 		stx	$4000
 		dey
-		;beq	.sendloop_end		;(34)
-		;ldx	.lonibbles,y		;
-		;bit	$4002
-		;beq	*-3
-		;stx	$4000
-		;dey
-		;ldx	.lonibbles,y
-		;bit	$4002
-		;bne	*-3
-		;stx	$4000
-		;dey
 		bne	.sendloop		;(35)
 
 .sendloop_end	ldx	.lonibbles,y
@@ -1118,7 +1107,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		eor	#$ff		;=$FF? == input on plus/4 side?
 		bne	*-5
 		lda	#.BUSY
-		sta	$4000		;set status to .BUSY
+		sta	$4000		;set status to BUSY
 		lda	$4002
 		ora	#%00001000	;ACK=1: TCBM DATA output on 1551 side
 		sta	$4002

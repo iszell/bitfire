@@ -79,13 +79,20 @@ unlisten	= $ffae
 		lda #$08
 		sta z_fa
 } else {
+		lda	#8		;Hack: Unit 8 selected.
+		sta	z_fa		;This modification disables the Unit number autodetect.
+
 		lda	#0
 		sta	z_usekdy
 		lda	z_fa		;Read previously used device number
 		bne	+
-		lda	#8		;If not used any device, check 8
+-		lda	#8		;If not used any device, check 8
 		sta	z_fa
-+		jsr	open_w_15
++		and	#%11111100
+		cmp	#$08		;8,9,10,11?
+		bne	-
+		lda	z_fa
+		jsr	open_w_15
 		bmi	+		;Drive not present? Hm...
 		lda	z_fa
 		sta	.my_drive
@@ -105,9 +112,9 @@ unlisten	= $ffae
 		bit	z_usekdy
 		bmi	+
 		inc	.iec_units
-+		lda	z_fa
+		lda	z_fa
 		sta	.my_drive
-		jsr	unlisten
++		jsr	unlisten
 ++		inc	z_fa
 		dex
 		bne	-
