@@ -2,32 +2,33 @@ ACME = acme
 ACMEOPT = -f cbm
 D64W = ../bitfire/d64write
 LZ = ../bitfire/bitnax
-EXO = ../../exomizer/exomizer2/src/exomizer
 INST = ../bitfire/installer_plus4_1541dc_swap.prg
 
 all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_all.d64 test_c64.d64
 
 test_plus4_1541.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o test_4_1541.prg test.asm
+	$(LZ) --sfx 4109 --plus4 -o test_4_1541.lz test_4_1541.prg
 	cp $< $@
-	$(D64W) -d $@ -s test_4_1541.prg
+	$(D64W) -d $@ --boot test_4_1541.lz
 
 test_plus4_1551.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=2 -o test_4_1551.prg test.asm
+	$(LZ) --sfx 4109 --plus4 -o test_4_1551.lz test_4_1551.prg
 	cp $< $@
-	$(D64W) -d $@ -s test_4_1551.prg
+	$(D64W) -d $@ --boot test_4_1551.lz
 
 test_plus4_all.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=3 -o test_4_all.prg test.asm
-	$(EXO) sfx basic -t4 -o test_4_all.exo test_4_all.prg
+	$(LZ) --sfx 4109 --plus4 -o test_4_all.lz test_4_all.prg
 	cp $< $@
-	$(D64W) -d $@ -s test_4_all.exo
+	$(D64W) -d $@ --boot test_4_all.lz
 
 test_c64.d64: test.d64 $(INST_ALL) $(INST) test.asm	 ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o test_c64.prg test.asm
 	$(LZ) --sfx 2061 -o test_c64.lz test_c64.prg
 	cp $< $@
-	$(D64W) -d $@ -s test_c64.lz
+	$(D64W) -d $@ --boot test_c64.lz
 
 test.d64: $(D64W) bitmap1.lz bitmap2.lz bitmap3.lz bitmap4.lz bitmap5.lz Makefile
 	$(D64W) -c test.d64 -h hello -i world --side 1
