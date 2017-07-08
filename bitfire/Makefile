@@ -138,10 +138,23 @@ installer_plus4_all.prg: installer_plus4_1541sc_swap.prg installer_plus4_1541dc_
 	@echo "========================================================================================"
 	@make -C . PLATFORM=16 PLUS4_MODE=8 PLUS4_BINCOMP=1 resident_p
 	@mv resident resident_1551
+
 	@mv loader_acme.inc 	loader_acme_plus4_1551_bincomp.inc 
+	@mv loader_c6510.inc 	loader_c6510_plus4_1551_bincomp.inc 
+	@mv loader_kickass.inc 	loader_kickass_plus4_1551_bincomp.inc 
+
 	diff loader_acme_plus4_1551_bincomp.inc loader_acme_plus4_1541.inc || true
 	@$(ACME) $(ACMEOPT) -DMULTI_INST=1 -o installer_plus4_all.prg installer.asm
-	@cp loader_acme_plus4_1541.inc loader_acme_plus4_all.inc 
+
+	@cat loader_acme_plus4_1541.inc | sed "s/plus4_sei/plus4_sei_1541/g" | sed "s/load_addr_lo/load_addr_lo_1541/g" > loader_acme_plus4_all.inc 
+	@grep load_addr_lo loader_acme_plus4_1551_bincomp.inc | sed "s/load_addr_lo/load_addr_lo_1551/g" >> loader_acme_plus4_all.inc 
+
+	@grep -v endif loader_c6510_plus4_1541.inc | sed "s/plus4_sei/plus4_sei_1541/g" | sed "s/load_addr_lo/load_addr_lo_1541/g" > loader_c6510_plus4_all.inc 
+	@grep load_addr_lo loader_c6510_plus4_1551_bincomp.inc | sed "s/load_addr_lo/load_addr_lo_1551/g" >> loader_c6510_plus4_all.inc 
+	@echo endif >> loader_c6510_plus4_all.inc 
+
+	@cat loader_kickass_plus4_1541.inc | sed "s/plus4_sei/plus4_sei_1541/g" | sed "s/load_addr_lo/load_addr_lo_1541/g" > loader_kickass_plus4_all.inc 
+	@grep load_addr_lo loader_kickass_plus4_1551_bincomp.inc | sed "s/load_addr_lo/load_addr_lo_1551/g" >> loader_kickass_plus4_all.inc 
 
 installers: installer_c64.prg installer_plus4_1541sc.prg installer_plus4_1541dc.prg installer_plus4_1551.prg installer_plus4_1541sc_swap.prg installer_plus4_1541dc_swap.prg installer_plus4_all.prg
 	@echo "All installers are compiled!"

@@ -932,6 +932,11 @@ link_cia2_type			;%00000100
 		!byte $00
 } else {
 		!byte BITFIRE_DRIVE_1551
+
+  !if BF_PLUS4_BINCOMP = 1 {
+bitfire_plus4_swap_receiver:
+  rts
+  }
 }
 
 }
