@@ -576,12 +576,34 @@ unlisten     = $ffae
 
 .pebcak51
 !convtab scr {
-		!text "please use a 1551 as unit 8!           "
+		!text "please connect a 1551 dive as unit 8!  "
 		!byte 0
 }
 		
   } else {
+
+        lda .iec_units
+        cmp #1
+        beq .inst_1541
+
+        ldx #0
+-       lda .pebcak41,x
+        beq +
+        sta $0fc0,x
+        inx
+        bne -
+
++       jmp .init_inst
+
+.inst_1541
 		+raw_installer 1541 
+
+.pebcak41
+!convtab scr {
+		!text "please connect a 1541 drive!           "
+		!byte 0
+}
+
   }
 }
 
