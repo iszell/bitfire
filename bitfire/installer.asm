@@ -7,16 +7,16 @@ BITFIRE_PLATFORM          = 16
 BITFIRE_C64               = 64
 BITFIRE_AUTODETECT        = 1
 BITFIRE_RESIDENT_AUTOINST = 1
-
-	* = $1200
+BITFIRE_INSTALLER_ADDR    = $1200
 
 } else {
 
 !src "config.inc"
 
-	* = BITFIRE_INSTALLER_ADDR
 }
 
+	* = BITFIRE_INSTALLER_ADDR
+	
 !zone installer {
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -28,10 +28,10 @@ z_usekdy	= $f9		;TCBM Listen/Talk flag
 
 
 
-listen		= $ffb1
-listen_sa	= $ff93
-iecout		= $ffa8
-unlisten	= $ffae
+listen       = $ffb1
+listen_sa    = $ff93
+iecout       = $ffa8
+unlisten     = $ffae
 
 .init_inst
 
@@ -64,9 +64,9 @@ unlisten	= $ffae
 		dex
 		bne -
 .iec_units = * + 1
-		lda #$00
-		cmp #1
-		beq .do_install
+		lda #0
+		cmp #2
+		bcc .do_install
 		ldx #$00
 -
 		lda .pebcak,x
@@ -93,8 +93,16 @@ unlisten	= $ffae
 		bne	-
 		lda	z_fa
 		jsr	open_w_15
-		bmi	+		;Drive not present? Hm...
-		lda	z_fa
+		bpl	+		;If drive present, check...
+
+		ldx	#$00		;Drive (8) not present...
+-		lda	.pebcak2,x
+		beq	.init_inst
+		sta	$0fc0,x
+		inx
+		bne	-
+
++		lda	z_fa
 		sta	.my_drive
 		bit	z_usekdy	;Drive on TCBM bus?
 		php
@@ -102,7 +110,7 @@ unlisten	= $ffae
 		plp
 		bmi	.do_install
 
-+		lda	#8		;Start check cycle in device 8
+		lda	#8		;Start check cycle in device 8
 		sta	z_fa
 		ldx	#4
 -		lda	#0
@@ -119,9 +127,9 @@ unlisten	= $ffae
 		dex
 		bne	-
 .iec_units = * + 1
-		lda	#$00
-		cmp	#1
-		beq	.do_install
+		lda	#0
+		cmp	#2
+		bcc	.do_install
 		ldx	#$00
 -		lda	.pebcak,x
 		beq	.init_inst
@@ -519,7 +527,7 @@ unlisten	= $ffae
 
 !ifdef MULTI_INST {
   !if (BF_DRIVE = 1541) {
-	!bin "resident_1541dc",,2
+	!bin "resident_1541sc",,2
   } else {
 	!bin "resident_1551",,2  
   }
@@ -550,7 +558,28 @@ unlisten	= $ffae
 
 } else {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
+  
+        lda .iec_units
+        beq .inst_1551
+        
+        ldx #0
+-       lda .pebcak51,x
+        beq +
+        sta $0fc0,x
+        inx
+        bne -
+
++       jmp .init_inst
+        
+.inst_1551
 		+raw_installer 1551
+
+.pebcak51
+!convtab scr {
+		!text "please use a 1551 as unit 8!           "
+		!byte 0
+}
+		
   } else {
 		+raw_installer 1541 
   }
@@ -561,6 +590,14 @@ unlisten	= $ffae
 !convtab scr {
 		!text "more than 1 drive on bus, turn off plz!"
 		!byte 0
+}
+
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+.pebcak2
+!convtab scr {
+		!text "please use unit 8!                     "
+		!byte 0
+}
 }
 
 detect

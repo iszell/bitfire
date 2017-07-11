@@ -320,7 +320,7 @@ sei_addr = *
 .get_one_byte
 		jmp .get_one_byte_
 
-		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei
+		+plus4_clock_switch_routine ~.bfsingleclock, ~.bfdblclock, ~bitfire_plus4_sei_1541
 
 .contgetbyte
     }

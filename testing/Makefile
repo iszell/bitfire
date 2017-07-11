@@ -4,7 +4,7 @@ D64W = ../bitfire/d64write
 LZ = ../bitfire/bitnax
 INST = ../bitfire/installer_plus4_1541dc_swap.prg
 
-all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_all.d64 test_c64.d64
+all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_multi.d64 test_c64.d64
 
 test_plus4_1541.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o test_4_1541.prg test.asm
@@ -18,11 +18,11 @@ test_plus4_1551.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	cp $< $@
 	$(D64W) -d $@ --boot test_4_1551.lz
 
-test_plus4_all.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
-	$(ACME) $(ACMEOPT) -DTEST_PLUS4=3 -o test_4_all.prg test.asm
-	$(LZ) --sfx 4109 --plus4 -o test_4_all.lz test_4_all.prg
+test_plus4_multi.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
+	$(ACME) $(ACMEOPT) -DTEST_PLUS4=3 -o test_4_multi.prg test.asm
+	$(LZ) --sfx 4109 --plus4 -o test_4_multi.lz test_4_multi.prg
 	cp $< $@
-	$(D64W) -d $@ --boot test_4_all.lz
+	$(D64W) -d $@ --boot test_4_multi.lz
 
 test_c64.d64: test.d64 $(INST_ALL) $(INST) test.asm	 ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o test_c64.prg test.asm

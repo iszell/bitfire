@@ -21,7 +21,7 @@ bitfire_reset_drive_
 +
 		bit	$fef0
 		bpl	*-3
-+
+++
 }
 
 		;upload data

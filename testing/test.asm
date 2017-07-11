@@ -8,7 +8,7 @@
 	!src "../bitfire/loader_acme_plus4_1551.inc"
 }
 !if TEST_PLUS4 = 3 {
-	!src "../bitfire/loader_acme_plus4_all.inc"
+	!src "../bitfire/loader_acme_plus4_multi.inc"
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
@@ -419,5 +419,5 @@ compare:
 	!bin "../bitfire/installer_plus4_1551.prg",,2
 }
 !if TEST_PLUS4 = 3 {
-	!bin "../bitfire/installer_plus4_all.prg",,2
+	!bin "../bitfire/installer_plus4_multi.prg",,2
 }
