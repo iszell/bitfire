@@ -576,7 +576,7 @@ unlisten     = $ffae
 
 .pebcak51
 !convtab scr {
-		!text "please connect a 1551 dive as unit 8!  "
+		!text "please connect a 1551 drive as unit 8! "
 		!byte 0
 }
 		
