@@ -86,7 +86,7 @@ protection feature by default in 1541 mode.
 1541 default receiver and swap routine
 --------------------------------------
 
-The single clock routine is the 1541 defalt in the binary release, but a swap routine
+The single clock routine is the 1541 default in the binary release, but a swap routine
 is also provided, so you can switch to the double clock routine and back any time you
 want.
 
@@ -113,7 +113,7 @@ hacked 1551 (used to be 1541) drive.
 This installer has the resident and drive code for both drives, and it tries to use
 a 1551 drive if available. The residen parts are made binary compatible for this
 installer, so almost all entry points and addresses are the same in the include file
-for both drives (loader_*_plus4_multi.inc). The lables that only make sense for one 
+for both drives (loader_*_plus4_multi.inc). The labels that only make sense for one 
 of the drives hava a _1541 or _1551 prefix. These are:
 
  - bitfire_plus4_sei_1541: the address of "sei" in 1541 single clock mode, see above.
@@ -154,6 +154,8 @@ The structure of the latest binary release:
    - installer_plus4_1551.prg: Inetaller for 1551 only.
    - loader_*_plus4_1551.inc: include file for the 1551 loader.
    - link_macros_*.inc: useful macros for many popular cross-assemblers
+   - reset_drive.asm: reset drive routine for 1541/1551
+   - request_disc.asm: request (next) disc routine for 1541/1551
  - example/
    - main.asm: simple example demonstrating loader installation, loading raw files and 
        loading and depacking compressed files.
@@ -169,7 +171,7 @@ Bitfire+4 2017.07.12:
  - Optional 1541 receiver swap routine: $400-$471
  - Precompiled installer for 1551 and 1541/1551 multi installer
  - load raw, load+decomp, decomp routines
- - Request disk and reset drive routines working with both 1541/1551 drives
+ - Request disc and reset drive routines working with both 1541/1551 drives
  - Basic irq handler for music, cpu clock protection, frame counter
  - SID chip detection, missing SID detection and NAE detection 
  - Include files and useful macros for the most popular cross-assemblers
