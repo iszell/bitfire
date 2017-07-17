@@ -79,6 +79,65 @@ unlisten     = $ffae
 		lda #$08
 		sta z_fa
 } else {
+  !ifndef MULTI_INST {
+    !if (BITFIRE_PLUS4_MODE != BITFIRE_PLUS4_1551) {	;===== 1541
+		lda	#8		;Start check cycle in device 8
+		sta	z_fa
+		ldx	#4
+-		lda	#0
+		sta	z_usekdy
+		jsr	open_w_15
+		bmi	++
+		bit	z_usekdy
+		bmi	+
+		inc	.iec_units
+		lda	z_fa
+		sta	.my_drive
++		jsr	unlisten
+++		inc	z_fa
+		dex
+		bne	-
+
+.iec_units = * + 1
+		lda	#0
+		bne	+
+-		lda	.pebcak41,x
+		beq	.init_inst
+		sta	$0fc0,x
+		inx
+		bne	-
+
++		cmp	#1
+		beq	.do_install
+-		lda	.pebcak,x
+		beq	.init_inst
+		sta	$0fc0,x
+		inx
+		bne	-
+    } else {						;===== 1551
+		lda	#0
+		sta	z_usekdy
+		lda	#8
+		sta	z_fa
+		jsr	open_w_15
+		bpl	+		;If drive present, check...
+
+--		ldx	#$00		;Drive 8 not present...
+-		lda	.pebcak51,x	;"connect 1551 u8"
+		beq	.init_inst
+		sta	$0fc0,x
+		inx
+		bne	-
+
++		bit	z_usekdy	;Drive on TCBM bus?
+		php
+		jsr	unlisten
+		plp
+		bpl	--
+		jmp	.do_install	;If U8 type is 1551, start BF installer
+.iec_units	brk
+    }
+  } else {
 		lda	#8		;Hack: Unit 8 selected.
 		sta	z_fa		;This modification disables the Unit number autodetect.
 
@@ -136,13 +195,14 @@ unlisten     = $ffae
 		sta	$0fc0,x
 		inx
 		bne	-
+
+  }
 .do_install
 .my_drive = * + 1
 		lda	#$08
 		sta	z_fa
 
 .startinstall
-
 }
 
 
@@ -558,19 +618,6 @@ unlisten     = $ffae
 
 } else {
   !if (BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1551) {
-  
-        lda .iec_units
-        beq .inst_1551
-        
-        ldx #0
--       lda .pebcak51,x
-        beq +
-        sta $0fc0,x
-        inx
-        bne -
-
-+       jmp .init_inst
-        
 .inst_1551
 		+raw_installer 1551
 
@@ -581,20 +628,6 @@ unlisten     = $ffae
 }
 		
   } else {
-
-        lda .iec_units
-        cmp #1
-        beq .inst_1541
-
-        ldx #0
--       lda .pebcak41,x
-        beq +
-        sta $0fc0,x
-        inx
-        bne -
-
-+       jmp .init_inst
-
 .inst_1541
 		+raw_installer 1541 
 

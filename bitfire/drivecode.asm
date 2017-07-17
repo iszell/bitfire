@@ -69,12 +69,7 @@
   }
 }
 
-!if BF_DRIVE = 1541 {
   .STEPPING_SPEED	= $98
-} else {
-  .STEPPING_SPEED	= $90
-}
-
 
 .drivecode	= $0000
 .bootstrap	= $0700
