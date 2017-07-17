@@ -131,6 +131,19 @@ it is easy to handle the 1541/1551 cases like this
 
 .case1551
   ...
+  
+Hardware detection
+^^^^^^^^^^^^^^^^^^
+
+The installer detects the drive type, and popular Plus/4 hardware extensions. The 
+detection results are stored in link_drive_type, link_chip_types, link_sid_types
+all pointing to $03ff. The meaning of its bits are:
+
+bit 7: 1551 drive detected
+bit 6: no SID chip detected (TED only)
+bit 5: NAE card detected
+bit 4-1: unused
+bit 0: new SID (8580) detected
 
 Binary Release
 ^^^^^^^^^^^^^^
@@ -163,7 +176,7 @@ The structure of the latest binary release:
        how to create disc and copy files to it in normal and bitfire format.
    - bitmap*.prg: five bitmaps
 
-Bitfire+4 2017.07.12:
+Bitfire+4 2017.07.17:
  - Resident part: $200-$3ff
  - Zero page usage: $04-$09
  - 1541 2bit ATM double/single clock receiver routines
