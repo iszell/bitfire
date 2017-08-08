@@ -178,7 +178,7 @@ The structure of the latest binary release:
 
 Bitfire+4 2017.07.17:
  - Resident part: $200-$3ff
- - Zero page usage: $04-$09
+ - Zero page usage: $04-$0a
  - 1541 2bit ATM double/single clock receiver routines
  - 1551 8bit protocol
  - Optional 1541 receiver swap routine: $400-$471
