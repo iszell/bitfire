@@ -5,6 +5,12 @@ int debug_level;
 #include "debug.h"
 #include "debug_funcs.h"
 
+typedef enum {
+    false,
+    true
+} bool;
+
+
 static void ascii2petscii_char(char* c) {
     if(*c>0x60 && *c<=0x7a) *c^=0x20;
     else if (*c>0x40 && *c<=0x5a) *c^=0x80;
@@ -76,9 +82,14 @@ static int d64_read_sector(d64* d64, unsigned char track, unsigned char sector, 
     return 1;
 }
 
+static bool print_ts = false;
+
 static int d64_write_sector(d64* d64, unsigned char track, unsigned char sector, unsigned char* buf) {
     int err;
     debug_message("writing sector %d/%d\n",track,sector);
+    if (print_ts && track!=D64_BAM_TRACK) {
+        printf("  track/sector : %d/%d\n",track,sector);
+    }
     /* set position within .d64 */
     if(!d64_set_pos(d64, track, sector)) {
         fail_message("could not set position\n");
@@ -690,6 +701,7 @@ int main(int argc, char *argv[]) {
         printf("-d <d64-image>          Select image. Files will be added\n");
         printf("-b <file>               Writes a file in bitfire format without a visible dir entry\n");
         printf("-s <file>               Writes a file in standard format\n");
+        printf("-ts                     Prints all used t/s for the next saved bitfire format file\n");
         printf("--side <num>            Determines which side this disk image will be when it comes about turning the disc\n");
         printf("--boot <file>           Writes a standard file into the dirtrack. The dirart is linked to that file.\n");
         printf("-a <num> <dirart.prg>   A dirart can be provided, it extracts the first 16 chars of <num> lines of a petscii screen plus a first line that is interpreted as header + id. Any header and id given through -h and -i will be ignored then.\n");
@@ -755,6 +767,8 @@ int main(int argc, char *argv[]) {
         else if(!strcmp(argv[c], "-b")) {
             c++;
         }
+        else if(!strcmp(argv[c], "-ts")) {
+        }
         else if(!strcmp(argv[c], "--boot")) {
             if (argc -c > 1) boot_file = argv[++c];
             else {
@@ -805,9 +819,16 @@ int main(int argc, char *argv[]) {
     //parse out bitfire files and write them to d64
     c = 0;
     while(++c < argc) {
-        if(argc -c > 1 && !strcmp(argv[c], "-b")) {
-            d64_write_file(&d64, argv[++c], FILETYPE_BITFIRE, 1, interleave, side);
-        }
+        if(argc -c > 1) {
+			if(!strcmp(argv[c], "-ts")) {
+				print_ts = true;
+			} 
+			else if(!strcmp(argv[c], "-b")) {
+                printf("\"%s\" is saved to\n", argv[c+1]);
+		        d64_write_file(&d64, argv[++c], FILETYPE_BITFIRE, 1, interleave, side);
+				print_ts = false;
+		    }
+	    }
     }
 
     //write the boot file
