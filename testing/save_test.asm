@@ -65,9 +65,16 @@ main:
 	inx
 	bne -
 
+	jsr clear
+
+	;loading the previously saved screen
 	lda #0
 	jsr bitfire_loadraw_
 
+	jsr clear
+
+
+	;loading the save routine 
 	lda #01
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
 	bit bitfire_drive_type
@@ -113,6 +120,16 @@ main:
 	ldy #12
 	jsr bfsave+6
 
+	jsr bfsave+3
+
+	jsr clear
+
+	lda #0
+	jsr bitfire_loadraw_
+
+	jmp *
+
+clear:
 	ldx #0
 	txa
 -
@@ -123,12 +140,7 @@ main:
 	inx
 	bne -
 
-	jsr bfsave+3
-
-	lda #0
-	jsr bitfire_loadraw_
-
-	jmp *
+	rts
 
 	* = BITFIRE_INSTALLER_ADDR
 
