@@ -522,19 +522,19 @@ bitfire_load_addr_lo = * + 1
   !if (BF_DRIVE = 1541) {		;===== 1541
 
 bitfire_send_byte_
-		sta .filenum			;save value
-		ldx #7
-		lda #%11001001			;ANT/CLK drive Off, DATA drive On
+		sta	.filenum		;save value
+		ldx	#7
+		lda	#%11001000		;ANT/CLK drive Off, DATA drive Off
 .bit_loop
-		lsr .filenum
-		bcc +
-		and #%11111110
+		lsr	.filenum
+		bcs	+
+		ora	#%00000001
 +
-		eor #%00000011			;DATA/CLK drive changed
-		sta $01
-		ora #%00000001
-		jsr .bfwait24			;24 cycles
-		jsr .bfwait12			;12 cycles
+		eor	#%00000011		;DATA/CLK drive changed
+		sta	$01
+		and	#%11111110		;Data bit clear
+		jsr	.bfwait24		;24 cycles
+		jsr	.bfwait12		;12 cycles
 		dex
 		bpl .bit_loop
 		rts
@@ -555,7 +555,7 @@ bitfire_send_byte_
 		stx	$fef0			
 		lda	#%00000001
 		sta	$fef4				;ST0=Out, 0, cycle end in 1551 side
-		jmp	.bfwait12
+		jmp	.bfwait24
 
 .bitfire_send_byte51_
 		jsr .bitfire_send_byte_

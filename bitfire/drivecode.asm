@@ -624,6 +624,10 @@ readdisk_1551	sta	.rd51_markcmp+1
 		lda	.lonibbles+254		;Readed header: Track number
 		cmp	.track
 		bne	.read_sector_		;Wrong track: read next sector (ugh...)
+		ldx	.lonibbles+255		;Readed header: ID1
+		stx	.head_lo+2
+		ldx	.z_chksum		;Readed header: ID2
+		stx	.head_lo+3
 		ldx	.lonibbles+253		;Readed header: Sector number
 		stx	.head_lo+0
   }
@@ -1089,7 +1093,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ora	#.TCPU_LED_OFF
 		sta	$01
   }
-		jsr .get_byte
+.pull_command	jsr .get_byte
 
 		;load file, file number is in A
 .load_file
@@ -1390,7 +1394,23 @@ readdisk_1551	sta	.rd51_markcmp+1
 		lda #$80		;execpt a whole new byte
 		sta $1800
 
-		ldx #$00		;start with a free bus
+		lda	#%00000100	;CLK line mask
+-		bit	$1800
+		beq	-
+		ldx	$1800
+		bmi	.lock
+		lda	#$80
+		cpx	#$05
+		ror
+
+-		cpx	$1800
+		beq	-
+		ldx	$1800
+		bmi	.lock
+		cpx	#$01
+		ror
+
+;		ldx #$00		;start with a free bus
 .gloop
 -
 		cpx $1800		;wait for transition
@@ -1408,6 +1428,11 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ror			;and shift in
 
 		bcc .gloop		;more bits to fetch?
+
+;		ldx	#$00
+;-		cpx	$1800
+;		bne	-
+
 		sty $1800		;set busy bit
 		rts
   } else {						;===== 1551
@@ -1519,3 +1544,42 @@ readdisk_1551	sta	.rd51_markcmp+1
 
 .drivecode_end
 .drivecode_size = .drivecode_end - .drivecode_start
+
+  !if (BF_DRIVE = 1541) {				;===== 1541
+drivecode_41_IDLE	=	.IDLE
+drivecode_41_BUSY	=	.BUSY
+drivecode_41_BLOCK_RDY	=	.BLOCK_READY
+drivecode_41_VIA2LED_ON	=	.VIA2_LED_ON
+drivecode_41_VIA2MTR_ON	=	.VIA2_MOTOR_ON
+drivecode_41_bin2ser	=	.bin2ser
+drivecode_41_to_track	=	.to_track
+drivecode_41_sector	=	.sector
+drivecode_41_filenum	=	.filenum
+drivecode_41_dirsect	=	.dirsect
+drivecode_41_head_lo	=	.head_lo
+drivecode_41_preamb_lo	=	.preamble_lo
+drivecode_41_preamb_hi	=	.preamble_hi
+drivecode_41_pullcomm	=	.pull_command
+drivecode_41_motoron	=	.motor_on
+drivecode_41_getbyte	=	.get_byte
+drivecode_41_seek	=	.seek
+drivecode_41_launch	=	.drivecode_launch
+  } else {						;===== 1551
+drivecode_51_IDLE	=	.IDLE
+drivecode_51_BUSY	=	.BUSY
+drivecode_51_BLOCK_RDY	=	.BLOCK_READY
+drivecode_51_TCPULED_ON	=	.TCPU_LED_ON
+drivecode_51_to_track	=	.to_track
+drivecode_51_sector	=	.sector
+drivecode_51_filenum	=	.filenum
+drivecode_51_dirsect	=	.dirsect
+drivecode_51_head_lo	=	.head_lo
+drivecode_51_preamb_lo	=	.preamble_lo
+drivecode_51_preamb_hi	=	.preamble_hi
+drivecode_51_pullcomm	=	.pull_command
+drivecode_51_motoron	=	.motor_on
+drivecode_51_getbyte	=	.get_byte
+drivecode_51_seek	=	.seek
+drivecode_51_launch	=	.drivecode_launch
+  }
+

@@ -75,16 +75,20 @@ drivecode : drivecode41.prg
 installer_p: installer.asm drivecode.asm request_disc.asm resident_p detect.asm config.inc Makefile resident_minimal_zp.asm
 	@echo "========================================================================================"
 	@echo "Buidling installer... (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP))"
-	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o installer_p installer.asm
+	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -l installer_labels.txt -r installer.lst -o installer_p installer.asm
+	@echo "Creating drivecode_acme.inc..."
+	@grep "drivecode_*" installer_labels.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/\= / \= /" > drivecode_acme.inc
+	@rm installer_labels.txt
 	@rm resident_labels.txt
 
 
 installer_c64.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=64 PLUS4_MODE=0 PLUS4_BINCOMP=0 installer_p
 	@mv installer_p $@
-	@mv loader_acme.inc 		loader_acme_c64.inc 
+	@mv loader_acme.inc 	loader_acme_c64.inc 
 	@mv loader_c6510.inc 	loader_c6510_c64.inc 
 	@mv loader_kickass.inc 	loader_kickass_c64.inc 
+	@mv drivecode_acme.inc	drivecode_acme_1541.inc
 
 installer_plus4_1541sc.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=16 PLUS4_MODE=1 PLUS4_BINCOMP=0 installer_p
@@ -92,6 +96,7 @@ installer_plus4_1541sc.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_acme.inc 	loader_acme_plus4_1541sc.inc 
 	@mv loader_c6510.inc 	loader_c6510_plus4_1541sc.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_1541sc.inc 
+	@mv drivecode_acme.inc	drivecode_acme_1541.inc
 
 installer_plus4_1541dc.prg: Makefile resident.asm installer.asm config.inc
 	@make -C . PLATFORM=16 PLUS4_MODE=2 PLUS4_BINCOMP=0 installer_p
@@ -99,6 +104,7 @@ installer_plus4_1541dc.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_acme.inc 	loader_acme_plus4_1541dc.inc 
 	@mv loader_c6510.inc 	loader_c6510_plus4_1541dc.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_1541dc.inc 
+	@mv drivecode_acme.inc	drivecode_acme_1541.inc
 
 
 installer_plus4_1551.prg: Makefile resident.asm installer.asm config.inc
@@ -108,6 +114,7 @@ installer_plus4_1551.prg: Makefile resident.asm installer.asm config.inc
 	@mv loader_acme.inc 	loader_acme_plus4_1551.inc 
 	@mv loader_c6510.inc 	loader_c6510_plus4_1551.inc 
 	@mv loader_kickass.inc 	loader_kickass_plus4_1551.inc 
+	@mv drivecode_acme.inc	drivecode_acme_1551.inc
 
 installer_plus4_1541sc_swap.prg: Makefile resident.asm installer.asm config.inc
 	@echo "========================================================================================"
@@ -159,5 +166,30 @@ installer_plus4_multi.prg: installer_plus4_1541sc_swap.prg installer_plus4_1541d
 installers: installer_c64.prg installer_plus4_1541sc.prg installer_plus4_1541dc.prg installer_plus4_1551.prg installer_plus4_1541sc_swap.prg installer_plus4_1541dc_swap.prg installer_plus4_multi.prg
 	@echo "All installers are compiled!"
 
+drivecode_acme_1541.inc : installer_c64.prg
+
+drivecode_acme_1551.inc : installer_plus4_1551.prg
+
+loader_acme_c64.inc : installer_c64.prg
+
+loader_acme_plus4_multi.inc : installer_plus4_multi.prg
+
+loader_acme_plus4_1551.inc : installer_plus4_1551.prg
+
+save_c64.prg : drivecode_acme_1541.inc resident_save.asm sector_routs.asm loader_acme_c64.inc
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=64 -DBITFIRE_SAVE_ADDR=0x0400 -DBF_DRIVE=1541 -DNO_INSTALLER=1 -o $@ resident_save.asm
+
+save_plus4_multi_1541.prg : drivecode_acme_1541.inc resident_save.asm sector_routs.asm loader_acme_plus4_multi.inc
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0480 -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1541 -DNO_INSTALLER=1 -o $@ resident_save.asm
+
+save_plus4_multi_1551.prg : drivecode_acme_1551.inc resident_save.asm sector_routs.asm loader_acme_plus4_multi.inc
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0480 -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1551 -DNO_INSTALLER=1 -o $@ resident_save.asm
+	
+save_plus4_1551.prg : drivecode_acme_1551.inc resident_save.asm sector_routs.asm loader_acme_plus4_1551.inc
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0400 -DBITFIRE_PLUS4_MODE=8 -DBF_DRIVE=1551 -DNO_INSTALLER=1 -o $@ resident_save.asm
+
+save_routines: save_c64.prg save_plus4_multi_1541.prg save_plus4_multi_1551.prg save_plus4_1551.prg
+	@echo "All save routines are compiled!"
+
 clean:
-	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_15*
+	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_15* resident_save*.prg resident*.txt *.lst

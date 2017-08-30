@@ -5,6 +5,8 @@ bitfire_reset_drive_
         ;check if drive is idle
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+		lda	#$3f
+		sta	$dd02			;Release bus
         bit $dd00
         bpl *-3
 } else {
@@ -13,8 +15,10 @@ bitfire_reset_drive_
         bmi +
 
         ;===== 1541
-        bit $01
-        bpl *-2
+		lda	#%11001000		;Release bus
+		sta	$01
+		bit	$01
+		bpl	*-2
         bmi ++
 
 +       ;===== 1551
