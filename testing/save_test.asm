@@ -1,23 +1,33 @@
 !if TEST_PLUS4 = 0 {
 	!src "../bitfire/loader_acme_c64.inc"
+bfsave=$400
 }
 !if TEST_PLUS4 = 1 {
 	!src "../bitfire/loader_acme_plus4_1541.inc"
+bfsave=$480
 }
 !if TEST_PLUS4 = 2 {
 	!src "../bitfire/loader_acme_plus4_1551.inc"
+bfsave=$400
 }
 !if TEST_PLUS4 = 3 {
 	!src "../bitfire/loader_acme_plus4_multi.inc"
+bfsave=$480
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+
+screen = $0400
+
 	* = $801
 	!word +,0
 	!byte $9e	; sys token
 	!text "2061"
 +	!byte 0,0,0
 } else {
+
+screen = $0c00
+
 	* = $1001
 	!word +,0
 	!byte $9e	; sys token
@@ -36,75 +46,86 @@ main:
 	lda #$35
 	sta $01
 
+} else {
+
+	sta $ff3f
+
+}
+
 	ldx #0
 -
-	lda $0400,x
-	sta $2400,x
-	lda $0500,x
-	sta $2500,x
-	lda $0600,x
-	sta $2600,x
-	lda $0700,x
-	sta $2700,x
+	lda screen+$000,x
+	sta $2000,x
+	lda screen+$100,x
+	sta $2100,x
+	lda screen+$200,x
+	sta $2200,x
+	lda screen+$300,x
+	sta $2300,x
 	inx
 	bne -
 
-	lda #1
+	lda #0
 	jsr bitfire_loadraw_
 
-	lda #0
-	jsr bitfire_loadcomp_
+	lda #01
+!if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
+	bit bitfire_drive_type
+	bpl *+4
+	lda #2
 }
+	jsr bitfire_loadcomp_
 
-	jsr $400
+
+	jsr bfsave
+
 
 	lda #$00
 	sta $d0
-	lda #$24
+	lda #$20
 	sta $d1
 
 	lda #$d0
 	ldx #1
+	ldy #0
+	jsr bfsave+6
+
+
+
+	inc $d1
+
+	lda #$d0
+	ldx #1
+	ldy #4
+	jsr bfsave+6
+
+	inc $d1
+
+	lda #$d0
+	ldx #1
+	ldy #8
+	jsr bfsave+6
+
+	inc $d1
+
+	lda #$d0
+	ldx #1
 	ldy #12
-	jsr $406
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #16
-	jsr $406
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #20
-	jsr $406
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #1
-	jsr $406
-
+	jsr bfsave+6
 
 	ldx #0
 	txa
 -
-!if (BITFIRE_PLATFORM = BITFIRE_C64) {
-	sta $0800,x
-	sta $0900,x
-	sta $0a00,x
-	sta $0b00,x
-}
+	sta screen+$000,x
+	sta screen+$100,x
+	sta screen+$200,x
+	sta screen+$300,x
 	inx
 	bne -
 
-	jsr $403
+	jsr bfsave+3
 
-	lda #1
+	lda #0
 	jsr bitfire_loadraw_
 
 	jmp *

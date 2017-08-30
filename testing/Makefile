@@ -60,20 +60,20 @@ save_test_c64.d64 : save_test.asm screen_c64.prg $(D64W) $(LZ) $(INST) $(SAVE)
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o save_test_c64.prg $<
 	$(LZ) --sfx 2061 -o save_test_c64.lz save_test_c64.prg
 	$(LZ) --bitfire -o save_c64.lz ../bitfire/save_c64.prg
-	$(D64W) -c $@ --boot save_test_c64.lz -b save_c64.lz -ts -b screen_c64.prg
+	$(D64W) -c $@ --boot save_test_c64.lz -ts -b screen_c64.prg -b save_c64.lz
 
-$(D64W) : 
+$(D64W) :
 	make -C ../bitfire d64write
 
-$(LZ) : 
+$(LZ) :
 	make -C ../bitfire bitnax
 
 $(INST) : force
 	make -C ../bitfire installers
-	
+
 $(SAVE) : force
 	make -C ../bitfire save_routines
-	
+
 bitmap%.lz : bitmap%.prg $(LZ)
 	$(LZ) --bitfire -o $@ $<
 
