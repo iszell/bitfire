@@ -1,5 +1,5 @@
 !if TEST_PLUS4 = 0 {
-	!src "../bitfire/loader_acme_c64.inc"	
+	!src "../bitfire/loader_acme_c64.inc"
 }
 !if TEST_PLUS4 = 1 {
 	!src "../bitfire/loader_acme_plus4_1541.inc"
@@ -25,12 +25,17 @@
 +	!byte 0,0,0
 }
 
+
 main:
 	jsr bitfire_install_
 	sei
 
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
+
+	lda #$35
+	sta $01
+
 	ldx #0
 -
 	lda $0400,x
@@ -84,8 +89,6 @@ main:
 	ldy #1
 	jsr $406
 
-	jsr $403
-
 
 	ldx #0
 	txa
@@ -97,9 +100,12 @@ main:
 	sta $0b00,x
 }
 	inx
-	bne - 
+	bne -
 
-	jsr link_load_next_comp
+	jsr $403
+
+	lda #1
+	jsr bitfire_loadraw_
 
 	jmp *
 
