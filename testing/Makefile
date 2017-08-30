@@ -3,8 +3,10 @@ ACMEOPT = -f cbm
 D64W = ../bitfire/d64write
 LZ = ../bitfire/bitnax
 INST = ../bitfire/installer_plus4_1541dc_swap.prg
+SAVE = ../bitfire/save_c64.prg
 
-all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_multi.d64 test_c64.d64
+all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_multi.d64 test_c64.d64 \
+	save_test_c64.d64
 
 test_plus4_1541.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o test_4_1541.prg test.asm
@@ -54,7 +56,7 @@ add_lz_files:
 			-b bitmap4.lz \
 			-b bitmap5.lz
 
-save_test_c64.d64 : save_test.asm screen_c64.prg
+save_test_c64.d64 : save_test.asm screen_c64.prg $(D64W) $(LZ) $(INST) $(SAVE)
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o save_test_c64.prg $<
 	$(LZ) --sfx 2061 -o save_test_c64.lz save_test_c64.prg
 	$(LZ) --bitfire -o save_c64.lz ../bitfire/save_c64.prg
@@ -68,6 +70,9 @@ $(LZ) :
 
 $(INST) : force
 	make -C ../bitfire installers
+	
+$(SAVE) : force
+	make -C ../bitfire save_routines
 	
 bitmap%.lz : bitmap%.prg $(LZ)
 	$(LZ) --bitfire -o $@ $<

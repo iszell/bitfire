@@ -9,15 +9,15 @@ ACME_DEFS = -DBITFIRE_PLATFORM=$(PLATFORM) -DBITFIRE_PLUS4_MODE=$(PLUS4_MODE) -D
 all: bitnax d64write installer.prg
 
 d64write: d64write.c *.h
-	@echo "Buidling d64write..."
+	@echo "Building d64write..."
 	@$(CC) $< -o $@ $(CFLAGS)
 
 bitnax: lz.c
-	@echo "Buidling bitnax..."
+	@echo "Building bitnax..."
 	@${CC} $< -o $@ ${CFLAGS}
 
 installer.prg: installer.asm drivecode.asm request_disc.asm resident.asm detect.asm config.inc Makefile resident_minimal_zp.asm
-	@echo -n "Buidling resident part ->"
+	@echo -n "Building resident part ->"
 	@$(ACME) $(ACMEOPT) -o resident -l resident_labels.txt resident.asm
 	@printf " Size: $$%04x\n" $$((`wc -c < resident` - 2))
 	@echo "Creating loader_acme.inc..."
@@ -37,14 +37,14 @@ installer.prg: installer.asm drivecode.asm request_disc.asm resident.asm detect.
 	@echo "Creating loader_kickass.inc..."
 	@cat loader_acme.inc | sed "s/\(.*\)/\.var \\1/" >> loader_kickass.inc
 	@#echo "}" >> loader_kickass.inc
-	@echo "Buidling installer..."
+	@echo "Building installer..."
 	@$(ACME) $(ACMEOPT) -o installer.prg installer.asm
 	@rm resident_labels.txt
 
 #This is the parametrized target for building the resident, please note $(ACME_DEFS).
 resident_p: resident.asm config.inc Makefile resident_minimal_zp.asm
 	@echo "----------------------------------------------------------------------------------------"
-	@echo -n "Buidling resident part (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP)) ->"
+	@echo -n "Building resident part (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP)) ->"
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -o resident -l resident_labels.txt resident.asm
 	@printf " Size: $$%04x\n" $$((`wc -c < resident` - 2))
 	@echo "Creating loader_acme.inc..."
@@ -74,7 +74,7 @@ drivecode : drivecode41.prg
 #This is the parametrized target for building the installer, please note $(ACME_DEFS).
 installer_p: installer.asm drivecode.asm request_disc.asm resident_p detect.asm config.inc Makefile resident_minimal_zp.asm
 	@echo "========================================================================================"
-	@echo "Buidling installer... (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP))"
+	@echo "Building installer... (platform: $(PLATFORM); receiver: $(PLUS4_MODE); bincomp: $(PLUS4_BINCOMP))"
 	@$(ACME) $(ACMEOPT) $(ACME_DEFS) -l installer_labels.txt -r installer.lst -o installer_p installer.asm
 	@echo "Creating drivecode_acme.inc..."
 	@grep "drivecode_*" installer_labels.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/\= / \= /" > drivecode_acme.inc

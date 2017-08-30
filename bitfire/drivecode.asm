@@ -178,10 +178,12 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 		;bmi *-2
 
 		;fetch first dir sect and by that position head at track 18 to have a relyable start point for stepping
-		lda #$80
+-		lda #$80
 		sta $02
 		lda $02
 		bmi *-2
+		cmp	#1
+		bne	-
 
 		;motor and LED is on after that
 
@@ -1394,28 +1396,17 @@ readdisk_1551	sta	.rd51_markcmp+1
 		lda #$80		;execpt a whole new byte
 		sta $1800
 
-		lda	#%00000100	;CLK line mask
--		bit	$1800
-		beq	-
-		ldx	$1800
-		bmi	.lock
-		lda	#$80
-		cpx	#$05
-		ror
+		;ldx #$00		;start with a free bus
+		ldx	#%00000100-1	;CLK line
+-		cpx	$1800		;CLK line active?
+		bcc	+		;if yes, transfer was started
+		bcs	-
 
--		cpx	$1800
-		beq	-
-		ldx	$1800
-		bmi	.lock
-		cpx	#$01
-		ror
-
-;		ldx #$00		;start with a free bus
 .gloop
 -
 		cpx $1800		;wait for transition
 		beq -
-		ldx $1800		;reread register
++		ldx $1800		;reread register
 		bmi .lock		;is the bus locked via ATN? if so, wait
 		cpx #$05		;nope, interpret bit
 		ror			;and shift in
@@ -1428,11 +1419,6 @@ readdisk_1551	sta	.rd51_markcmp+1
 		ror			;and shift in
 
 		bcc .gloop		;more bits to fetch?
-
-;		ldx	#$00
-;-		cpx	$1800
-;		bne	-
-
 		sty $1800		;set busy bit
 		rts
   } else {						;===== 1551

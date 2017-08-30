@@ -47,7 +47,8 @@
 
 		jmp	.dsr_init		;Init routine
 		jmp	.dsr_exit		;Exit routine (return to BF mode)
-		;jmp	.dsr_sectorwrt		;Sector Write routine
+		jmp	.dsr_sectorwrt		;Sector Write routine
+
 
 
 
@@ -104,6 +105,16 @@
 .mem_headerbinb	=	$06b3			;Temporary bin. header storage area
 .mem_headergcrb	=	$06b1			;Temporary GCR header storage area
 
+
+
+;	Init routine: Turn on drive motor (if required):
+.dsr_init	lda	#<.drv_init_start
+		ldx	#>.drv_init_start
+		ldy	#.drv_init_size - 1
+.dsr_download	jsr	.upload_to_drv
+		ldx	#0
+		jmp	.wait_drv_idle
+
 ;	Sector Write routine:
 ;	A <- ZP address, this bytes (ZP, ZP+1) point to 256 BYTEs sector data in memory
 ;	X <- Track number (1..35, 36..40)
@@ -134,15 +145,6 @@
 		jsr	.upload_to_drv		;Upload sector writer routine
 		ldx	#0
 		jmp	.wait_drv_idle
-
-;	Init routine: Turn on drive motor (if required):
-.dsr_init	lda	#<.drv_init_start
-		ldx	#>.drv_init_start
-		ldy	#.drv_init_size - 1
-.dsr_download	jsr	.upload_to_drv
-		ldx	#0
-		jmp	.wait_drv_idle
-
 
 ;	Exit routine: return to normal BF mode:
 .dsr_exit	lda	#<.drv_exit_start
@@ -509,6 +511,8 @@
 		sta	.mem_headerbinb + 6	;Sector Header: unused byte
 		sta	.mem_headerbinb + 7	;Sector Header: unused byte
 
+		cpx	#0			;Selected sector = 0?
+		beq	+			;  If yes, no seek, ...
 		cpx	#40+1			;Selected sector > 40?
 		bcs	+			;  If yes, no seek, "sector not found" report lately
 		jsr	.seek			;Seek to required track
