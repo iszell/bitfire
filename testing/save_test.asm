@@ -1,19 +1,21 @@
 !if TEST_PLUS4 = 0 {
 	!src "../bitfire/loader_acme_c64.inc"
-bfsave=$400
+BITFIRE_SAVE_ADDR = $400
 }
 !if TEST_PLUS4 = 1 {
 	!src "../bitfire/loader_acme_plus4_1541.inc"
-bfsave=$480
+BITFIRE_SAVE_ADDR = $480
 }
 !if TEST_PLUS4 = 2 {
 	!src "../bitfire/loader_acme_plus4_1551.inc"
-bfsave=$400
+BITFIRE_SAVE_ADDR = $400
 }
 !if TEST_PLUS4 = 3 {
 	!src "../bitfire/loader_acme_plus4_multi.inc"
-bfsave=$480
+BITFIRE_SAVE_ADDR = $480
 }
+
+!src "../bitfire/save_acme.inc"
 
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 
@@ -84,43 +86,21 @@ main:
 	jsr bitfire_loadcomp_
 
 
-	jsr bfsave
-
+	jsr bitfire_save_init
 
 	lda #$00
-	sta $d0
+	sta bitfire_save_data_ptr
 	lda #$20
-	sta $d1
+	sta bitfire_save_data_ptr+1
 
-	lda #$d0
 	ldx #1
 	ldy #0
-	jsr bfsave+6
+	jsr bitfire_save_block
+	jsr bitfire_save_next_block
+	jsr bitfire_save_next_block
+	jsr bitfire_save_next_block
 
-
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #4
-	jsr bfsave+6
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #8
-	jsr bfsave+6
-
-	inc $d1
-
-	lda #$d0
-	ldx #1
-	ldy #12
-	jsr bfsave+6
-
-	jsr bfsave+3
+	jsr bitfire_save_finish
 
 	jsr clear
 

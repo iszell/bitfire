@@ -1,5 +1,6 @@
 ;	Direct Sector handler routines...
 
+!cpu 6510
 
 !macro sector_routines BF_DRIVE {
 
@@ -44,12 +45,12 @@
 
 !pseudopc BITFIRE_SAVE_ADDR {
 
-
+bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		jmp	.dsr_init		;Init routine
+bitfire_save_finish_offs = * - BITFIRE_SAVE_ADDR
 		jmp	.dsr_exit		;Exit routine (return to BF mode)
+bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
 		jmp	.dsr_sectorwrt		;Sector Write routine
-
-
 
 
   !if (BF_DRIVE = 1541) {				;===== 1541
@@ -106,21 +107,39 @@
 .mem_headergcrb	=	$06b1			;Temporary GCR header storage area
 
 
+bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 
-;	Init routine: Turn on drive motor (if required):
-.dsr_init	lda	#<.drv_init_start
-		ldx	#>.drv_init_start
-		ldy	#.drv_init_size - 1
-.dsr_download	jsr	.upload_to_drv
-		ldx	#0
-		jmp	.wait_drv_idle
+	lda .block_sector+1
+	clc
+	adc #BITFIRE_CONFIG_INTERLEAVE
+	tay
+	cmp #17                      ;less than 17 is always ok
+	bcc +
+	lax .block_track+1
+	cmp .sector_limit_17-17,y
+	bcc +                        ;it's still ok on this track
+	lda .restart_sector_17-17,y
+	tay
+	bne +                        ;we cont on same track
+	inx                          ;next track
+        cpx #18
+        bne *+3
+        inx
+        stx .block_track+1
++	sty .block_sector+1
+	inc .block_pointer+2
+	jmp .dsr_sectorwrt+6
+
+;sec  17  18  19  20  21  22  23  24
+.sector_limit_17
+!byte 31, 25, 18, 18, 00, 00, 00, 00
+.restart_sector_17
+!byte 02, 03, 00, 01, 02, 03, 00, 01
 
 ;	Sector Write routine:
-;	A <- ZP address, this bytes (ZP, ZP+1) point to 256 BYTEs sector data in memory
 ;	X <- Track number (1..35, 36..40)
 ;	Y <- Sector number (0..16/17/18/20)
 .dsr_sectorwrt
-		sta	.block_pointer+1
 		stx	.block_track+1
 		sty	.block_sector+1
 		lda	#<.drv_writep_start
@@ -132,7 +151,8 @@
 .block_sector	lda	#0
 		jsr	.sendbyte_todrv		;Send BYTE to drive
 		ldy	#$ff
-.block_pointer	lda	($00),y			;Self-modified: read datas from block
+bitfire_save_data_ptr_offs = * + 1 - BITFIRE_SAVE_ADDR
+.block_pointer	lda	$bab,y			;Self-modified: read datas from block
 		jsr	.sendbyte_todrv		;Send BYTE to drive
 		dey
 		cpy	#$ff
@@ -145,6 +165,16 @@
 		jsr	.upload_to_drv		;Upload sector writer routine
 		ldx	#0
 		jmp	.wait_drv_idle
+
+
+;	Init routine: Turn on drive motor (if required):
+.dsr_init	lda	#<.drv_init_start
+		ldx	#>.drv_init_start
+		ldy	#.drv_init_size - 1
+.dsr_download	jsr	.upload_to_drv
+		ldx	#0
+		jmp	.wait_drv_idle
+
 
 ;	Exit routine: return to normal BF mode:
 .dsr_exit	lda	#<.drv_exit_start
