@@ -113,28 +113,39 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 	clc
 	adc #BITFIRE_CONFIG_INTERLEAVE
 	tay
-	cmp #17                      ;less than 17 is always ok
-	bcc +
+	cpy #17                      ;less than 17 is always ok
+	bcc .upd_s
 	lax .block_track+1
+	cpy #21                      ;more than 20 is never ok
+	bcs +
 	cmp .sector_limit_17-17,y
-	bcc +                        ;it's still ok on this track
-	lda .restart_sector_17-17,y
+	bcc .upd_s                   ;it's still ok on this track
++	iny
+!if (BITFIRE_CONFIG_INTERLEAVE&(BITFIRE_CONFIG_INTERLEAVE-1)) = 0 {
+	tya
+	and #BITFIRE_CONFIG_INTERLEAVE-1
 	tay
-	bne +                        ;we cont on same track
+} else {
+	tya
+-	tay
+	sec
+	sbc #BITFIRE_CONFIG_INTERLEAVE
+	bcs -
+	tya
+}
+	bne .upd_s                   ;we cont on same track
 	inx                          ;next track
         cpx #18
         bne *+3
         inx
         stx .block_track+1
-+	sty .block_sector+1
+.upd_s	sty .block_sector+1
 	inc .block_pointer+2
 	jmp .dsr_sectorwrt+6
 
-;sec  17  18  19  20  21  22  23  24
-.sector_limit_17
-!byte 31, 25, 18, 18, 00, 00, 00, 00
-.restart_sector_17
-!byte 02, 03, 00, 01, 02, 03, 00, 01
+.sector_limit_17:
+;sec  17  18  19  20
+!byte 31, 25, 18, 18
 
 ;	Sector Write routine:
 ;	X <- Track number (1..35, 36..40)
