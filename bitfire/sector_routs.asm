@@ -45,13 +45,6 @@
 
 !pseudopc BITFIRE_SAVE_ADDR {
 
-bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
-		jmp	.dsr_init		;Init routine
-bitfire_save_finish_offs = * - BITFIRE_SAVE_ADDR
-		jmp	.dsr_exit		;Exit routine (return to BF mode)
-bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
-		jmp	.dsr_sectorwrt		;Sector Write routine
-
 
   !if (BF_DRIVE = 1541) {				;===== 1541
 .IDLE		=	drivecode_41_IDLE
@@ -112,7 +105,6 @@ bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
 !byte 31, 25, 18, 18
 
 bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
-
 	lda .block_sector+1
 	clc
 	adc #BITFIRE_CONFIG_INTERLEAVE
@@ -149,6 +141,7 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 ;	Sector Write routine:
 ;	X <- Track number (1..35, 36..40)
 ;	Y <- Sector number (0..16/17/18/20)
+bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
 .dsr_sectorwrt
 		stx	.block_track+1
 		sty	.block_sector+1
@@ -156,8 +149,10 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 		ldx	#>.drv_writep_start
 		ldy	#.drv_writep_size - 1
 		jsr	.upload_to_drv		;Upload sector transfer and preparation routine
+bitfire_save_track_offs = * + 1 - BITFIRE_SAVE_ADDR
 .block_track	lda	#0			;Upload sector datas
 		jsr	.sendbyte_todrv		;Send BYTE to drive
+bitfire_save_sector_offs = * + 1 - BITFIRE_SAVE_ADDR
 .block_sector	lda	#0
 		jsr	.sendbyte_todrv		;Send BYTE to drive
 		ldy	#$ff
@@ -174,23 +169,25 @@ bitfire_save_data_ptr_offs = * + 1 - BITFIRE_SAVE_ADDR
 		ldy	#.drv_writed_size - 1
 		jsr	.upload_to_drv		;Upload sector writer routine
 		ldx	#0
-		jmp	.wait_drv_idle
+		beq	.wait_drv_idle		;sorter jmp
 
 
 ;	Init routine: Turn on drive motor (if required):
+bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 .dsr_init	lda	#<.drv_init_start
 		ldx	#>.drv_init_start
 		ldy	#.drv_init_size - 1
 .dsr_download	jsr	.upload_to_drv
 		ldx	#0
-		jmp	.wait_drv_idle
+		beq	.wait_drv_idle		;shorter jmp
 
 
 ;	Exit routine: return to normal BF mode:
+bitfire_save_finish_offs = * - BITFIRE_SAVE_ADDR
 .dsr_exit	lda	#<.drv_exit_start
 		ldx	#>.drv_exit_start
 		ldy	#.drv_exit_size - 1
-		jmp	.dsr_download
+		bne	.dsr_download		;shorter jmp
 
 ;	Upload code to drive: (Max size: 256 BYTEs!)
 .upload_to_drv	sta	.upload_addr + 1
