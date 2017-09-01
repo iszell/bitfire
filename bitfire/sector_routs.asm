@@ -113,13 +113,13 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 	clc
 	adc #BITFIRE_CONFIG_INTERLEAVE
 	tay
-	cpy #17                      ;less than 17 is always ok
-	bcc .upd_s
 	lax .block_track+1
+	cpy #17                      ;less than 17 is always ok
+	bcc .upd_ts
 	cpy #21                      ;more than 20 is never ok
 	bcs +
 	cmp .sector_limit_17-17,y
-	bcc .upd_s                   ;it's still ok on this track
+	bcc .upd_ts                  ;it's still ok on this track
 +	iny
 !if (BITFIRE_CONFIG_INTERLEAVE&(BITFIRE_CONFIG_INTERLEAVE-1)) = 0 {  ;interleave is 2^n
 	tya
@@ -133,15 +133,13 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 	bcs -
 	tya
 }
-	bne .upd_s                   ;we continue on same track
+	bne .upd_ts                  ;we continue on same track
 	inx                          ;next track
         cpx #18
-        bne *+3
+        bne .upd_ts
         inx
-        stx .block_track+1
-.upd_s	sty .block_sector+1
+.upd_ts
 	inc .block_pointer+2
-	jmp .dsr_sectorwrt+6
 
 .sector_limit_17:
 ;sec  17  18  19  20
