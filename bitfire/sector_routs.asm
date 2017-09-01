@@ -121,19 +121,19 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 	cmp .sector_limit_17-17,y
 	bcc .upd_s                   ;it's still ok on this track
 +	iny
-!if (BITFIRE_CONFIG_INTERLEAVE&(BITFIRE_CONFIG_INTERLEAVE-1)) = 0 {
+!if (BITFIRE_CONFIG_INTERLEAVE&(BITFIRE_CONFIG_INTERLEAVE-1)) = 0 {  ;interleave is 2^n
 	tya
 	and #BITFIRE_CONFIG_INTERLEAVE-1
 	tay
 } else {
 	tya
--	tay
 	sec
+-	tay
 	sbc #BITFIRE_CONFIG_INTERLEAVE
 	bcs -
 	tya
 }
-	bne .upd_s                   ;we cont on same track
+	bne .upd_s                   ;we continue on same track
 	inx                          ;next track
         cpx #18
         bne *+3
