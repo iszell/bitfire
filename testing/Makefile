@@ -6,7 +6,7 @@ INST = ../bitfire/installer_plus4_1541dc_swap.prg
 SAVE = ../bitfire/save_c64.prg
 
 all: test_plus4_1541.d64 test_plus4_1551.d64 test_plus4_multi.d64 test_c64.d64 \
-	save_test_c64.d64
+	save_test_c64.d64 save_test_plus4_multi.d64
 
 test_plus4_1541.d64: test.d64 $(INST_ALL) $(INST) test.asm ../bitfire/config.inc
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o test_4_1541.prg test.asm
@@ -60,7 +60,18 @@ save_test_c64.d64 : save_test.asm screen_c64.prg $(D64W) $(LZ) $(INST) $(SAVE)
 	$(ACME) $(ACMEOPT) -DTEST_PLUS4=0 -o save_test_c64.prg $<
 	$(LZ) --sfx 2061 -o save_test_c64.lz save_test_c64.prg
 	$(LZ) --bitfire -o save_c64.lz ../bitfire/save_c64.prg
-	$(D64W) -c $@ --boot save_test_c64.lz -ts -b screen_c64.prg -b save_c64.lz
+	$(D64W) -c test.d64 --boot save_test_c64.lz -ts -b screen_c64.prg -b save_c64.lz
+	make add_files
+	mv test.d64 $@
+
+save_test_plus4_multi.d64 : save_test.asm screen_plus4.prg $(D64W) $(LZ) $(INST) $(SAVE)
+	$(ACME) $(ACMEOPT) -DTEST_PLUS4=1 -o save_test_plus4_multi.prg $<
+	$(LZ) --sfx 4109 --plus4 -o save_test_p4.lz save_test_plus4_multi.prg
+	$(LZ) --bitfire -o save_plus4_multi_1541.lz ../bitfire/save_plus4_multi_1541.prg
+	$(LZ) --bitfire -o save_plus4_multi_1551.lz ../bitfire/save_plus4_multi_1551.prg
+	$(D64W) -c test.d64 --boot save_test_p4.lz -ts -b screen_plus4.prg -b save_plus4_multi_1541.lz -b save_plus4_multi_1551.lz
+	make add_files
+	mv test.d64 $@
 
 $(D64W) :
 	make -C ../bitfire d64write

@@ -3,14 +3,6 @@
 BITFIRE_SAVE_ADDR = $400
 }
 !if TEST_PLUS4 = 1 {
-	!src "../bitfire/loader_acme_plus4_1541.inc"
-BITFIRE_SAVE_ADDR = $480
-}
-!if TEST_PLUS4 = 2 {
-	!src "../bitfire/loader_acme_plus4_1551.inc"
-BITFIRE_SAVE_ADDR = $400
-}
-!if TEST_PLUS4 = 3 {
 	!src "../bitfire/loader_acme_plus4_multi.inc"
 BITFIRE_SAVE_ADDR = $480
 }
@@ -76,10 +68,10 @@ main:
 	jsr clear
 
 
-	;loading the save routine 
+	;loading the save routine
 	lda #01
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
-	bit bitfire_drive_type
+	bit link_drive_type
 	bpl *+4
 	lda #2
 }
@@ -128,11 +120,5 @@ clear:
 	!bin "../bitfire/installer_c64.prg",,2
 }
 !if TEST_PLUS4 = 1 {
-	!bin "../bitfire/installer_plus4_1541sc_swap.prg",,2
-}
-!if TEST_PLUS4 = 2 {
-	!bin "../bitfire/installer_plus4_1551.prg",,2
-}
-!if TEST_PLUS4 = 3 {
 	!bin "../bitfire/installer_plus4_multi.prg",,2
 }
