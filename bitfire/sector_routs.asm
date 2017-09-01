@@ -107,6 +107,10 @@ bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
 .mem_headergcrb	=	$06b1			;Temporary GCR header storage area
 
 
+.sector_limit_17:
+;sec  17  18  19  20
+!byte 31, 25, 18, 18
+
 bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 
 	lda .block_sector+1
@@ -141,9 +145,6 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 .upd_ts
 	inc .block_pointer+2
 
-.sector_limit_17:
-;sec  17  18  19  20
-!byte 31, 25, 18, 18
 
 ;	Sector Write routine:
 ;	X <- Track number (1..35, 36..40)
