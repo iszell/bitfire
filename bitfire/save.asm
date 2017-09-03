@@ -11,7 +11,7 @@
   }
 }
 
-!src "sector_routs.asm"
+!src "sector_routines.asm"
 
 	* = BITFIRE_SAVE_ADDR
 
