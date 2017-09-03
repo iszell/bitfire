@@ -2,43 +2,32 @@
 
 !cpu 6510
 
-!macro sector_routines BF_DRIVE {
+!macro sector_routines INSTALLER, BF_DRIVE {
 
 !zone dirsecthandlers {
 
-!ifndef NO_INSTALLER {
-
-.dc_src		= $fc
-.dc_dst		= $fe
+!if INSTALLER {
 
 .sectorrouts_installer
 
-		ldx	#<.sectrouts_start
-		ldy	#>.sectrouts_start
-		stx	.dc_src+0
-		sty	.dc_src+1
-		ldx	#<BITFIRE_DIRSECTROUT_ADDR
-		ldy	#>BITFIRE_DIRSECTROUT_ADDR
-		stx	.dc_dst+0
-		sty	.dc_dst+1
-		ldx	#<.sectrouts_end
-		ldy	#0
--		lda	(.dc_src),y
-		sta	(.dc_dst),y
-		inc	.dc_src+0
-		bne	+
-		inc	.dc_src+1
-+		inc	.dc_dst+0
-		bne	+
-		inc	.dc_dst+1
-+		cpx	.dc_src+0
-		bne	-
-		lda	#>.sectrouts_end
-		cmp	.dc_src+1
-		bne	-
+		ldx #0
+.cl
+		lda .sectrouts_start,x
+		sta BITFIRE_SAVE_ADDR,x
+		inx
+		bne +
+		inc .cl + 2
+		inc .cl + 5
++
+		cpx #<(.sectrouts_end-.sectrouts_start)
+		bne .cl
+		lda .cl + 2
+		cmp #>.sectrouts_end
+		bne .cl
+		
 		rts
 
-} ; NO_INSTALLER
+} ; INSTALLER
 
 .sectrouts_start
 
@@ -104,7 +93,7 @@
 ;sec  17  18  19  20
 !byte 31, 25, 18, 18
 
-bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
+bitfire_save_write_next_block_offs = * - BITFIRE_SAVE_ADDR
 	lda .block_sector+1
 	clc
 	adc #BITFIRE_CONFIG_INTERLEAVE
@@ -141,7 +130,7 @@ bitfire_save_next_block_offs = * - BITFIRE_SAVE_ADDR
 ;	Sector Write routine:
 ;	X <- Track number (1..35, 36..40)
 ;	Y <- Sector number (0..16/17/18/20)
-bitfire_save_block_offs = * - BITFIRE_SAVE_ADDR
+bitfire_save_write_block_offs = * - BITFIRE_SAVE_ADDR
 .dsr_sectorwrt
 		stx	.block_track+1
 		sty	.block_sector+1
@@ -169,16 +158,6 @@ bitfire_save_data_ptr_offs = * + 1 - BITFIRE_SAVE_ADDR
 		ldy	#.drv_writed_size - 1
 		jsr	.upload_to_drv		;Upload sector writer routine
 		ldx	#0
-		beq	.wait_drv_idle		;sorter jmp
-
-
-;	Init routine: Turn on drive motor (if required):
-bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
-.dsr_init	lda	#<.drv_init_start
-		ldx	#>.drv_init_start
-		ldy	#.drv_init_size - 1
-.dsr_download	jsr	.upload_to_drv
-		ldx	#0
 		beq	.wait_drv_idle		;shorter jmp
 
 
@@ -198,6 +177,15 @@ bitfire_save_finish_offs = * - BITFIRE_SAVE_ADDR
 		cpy	#$ff
 		bne	.upload_addr
 		rts
+
+;	Init routine: Turn on drive motor (if required):
+bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
+.dsr_init	lda	#<.drv_init_start
+		ldx	#>.drv_init_start
+		ldy	#.drv_init_size - 1
+.dsr_download	jsr	.upload_to_drv
+		ldx	#0
+		;beq	.wait_drv_idle		;shorter jmp
 
 ;	Wait drive idle:
 .wait_drv_idle

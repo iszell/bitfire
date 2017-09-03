@@ -87,10 +87,10 @@ main:
 
 	ldx #1
 	ldy #0
-	jsr bitfire_save_block
-	jsr bitfire_save_next_block
-	jsr bitfire_save_next_block
-	jsr bitfire_save_next_block
+	jsr bitfire_save_write_block
+	jsr bitfire_save_write_next_block
+	jsr bitfire_save_write_next_block
+	jsr bitfire_save_write_next_block
 
 	jsr bitfire_save_finish
 

@@ -13,6 +13,6 @@
 
 !src "sector_routs.asm"
 
-	*=BITFIRE_SAVE_ADDR
+	* = BITFIRE_SAVE_ADDR
 
-	+sector_routines BF_DRIVE
+	+sector_routines 0, BF_DRIVE
