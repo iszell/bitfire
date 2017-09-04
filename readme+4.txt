@@ -141,7 +141,7 @@ Note: We have a working 19.5 cycles version too, but it's a bit overcomplicated.
 Even 18 cycles is possible if you have a faster TIA replacement like BSZ in his
 hacked 1551 (used to be 1541) drive. 
 
-1541/1551 or "multi" installer
+1541/1551 multi installer
 ------------------------------
 
 This installer has the resident and drive code for both drives, and it tries to use
@@ -311,7 +311,7 @@ The structure of the latest binary release:
  - save/
    - save_*.prg: precompiled binaries for each installer in the package, ie.:
      - C64
-     - Plus/4 multi 1541/1551
+     - Plus/4 1541/1551 multi
      - Plus/4 1551 only  
    - save_*.inc: include files for all platforms
    - src/: files to build your own save routines
@@ -322,13 +322,14 @@ The structure of the latest binary release:
        how to create disc and copy files to it in normal and bitfire format.
    - bitmap*.prg: five bitmaps
    
-Bitfire+4 2017.09.0x:
+
+Bitfire+4 2017.09.05:
  - Loader resident part: $200-$3ff or smaller
  - Loader zero page usage: $04-$0a
  - 1541 2bit ATM double/single clock receiver routines for Plus/4
  - 1551 8bit protocol
  - Optional 1541 receiver swap routine for Plus/4: $400-$46c
- - Precompiled installers for C64, Plus/4 1551 only and 1541/1551 multi installer
+ - Precompiled installers for C64, Plus/4 1551 only and 1541/1551 multi
  - load raw, load+decomp, decomp routines
  - Request disc and reset drive routines for all supported hardwares
  - Save routine for all supported hardwares, source and precompiled binaries 
@@ -353,17 +354,6 @@ Bitfire+4 2017.07.17:
  - Win32 packer and image writer tool, ACME cross-assembler
  - Simple code example and Win32 build script that uses the included assembler
  
-Bitfire+4 2017.05.05:
- - Resident part: $200-$3ff
- - Zero page usage: $04-$0a
- - 2bit ATN double clock receiver
- - load raw, load+decomp, decomp routines
- - Basic irq handler for music, frame counter, partial SID detection
- - Include files and useful macros for the most popular cross-assemblers
- - Win32 packer and image writer tool, ACME cross-assembler
- - Precompiled installer for Plus/4 
- - Simple code example and Win32 build script that uses the included assembler
- 
 Bitfire+4 2017.05.21:
  - Resident part: $200-$3ff
  - Zero page usage: $04-$0a
@@ -377,4 +367,14 @@ Bitfire+4 2017.05.21:
  - Win32 packer and image writer tool, ACME cross-assembler
  - Precompiled installers for Plus/4 (bitfire/installer_plus4_41*c_swap.prg)
  - Simple code example and Win32 build script that uses the included assembler
- 
+  
+Bitfire+4 2017.05.05:
+ - Resident part: $200-$3ff
+ - Zero page usage: $04-$0a
+ - 2bit ATN double clock receiver
+ - load raw, load+decomp, decomp routines
+ - Basic irq handler for music, frame counter, partial SID detection
+ - Include files and useful macros for the most popular cross-assemblers
+ - Win32 packer and image writer tool, ACME cross-assembler
+ - Precompiled installer for Plus/4 
+ - Simple code example and Win32 build script that uses the included assembler
