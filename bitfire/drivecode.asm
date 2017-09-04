@@ -182,8 +182,8 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 		sta $02
 		lda $02
 		bmi *-2
-		cmp	#1
-		bne	-
+		cmp	#1			;Sector read OK?
+		bne	-			;If not, retry
 
 		;motor and LED is on after that
 
@@ -268,10 +268,12 @@ gcrbin_xxx43210	=	$f6ff	;/F6FF/ <- "GCR-...43210 > B-....3210" table (32 BYTEs, 
 		;bmi	*-2
 
 		;fetch first dir sect and by that position head at track 18 to have a relyable start point for stepping
-		lda	#$80
+-		lda	#$80
 		sta	$04
 		lda	$04
 		bmi	*-2
+		cmp	#1			;Sector read OK?
+		bne	-			;If not, retry
 
 		;motor and LED is on after that
 

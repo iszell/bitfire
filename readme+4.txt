@@ -3,7 +3,7 @@ Bitfire+4
 
 Credits:
  - Original C64 loader: Bitbreaker/Oxyron
- - Plus/4 port: Bubis/Resource, BSZ/NST, Krill/Plush (we borrowed some of your ideas ;))
+ - Plus/4 port: BSZ/NST, Bubis/Resource, Krill/Plush (we borrowed some of your ideas ;))
  - Testing: Luca/FIRE, Chronos/ACE, Csaba/New Wave
 
 GitHub:
@@ -117,7 +117,6 @@ for no good reason:
 Make sure you only do this with the single clock routine, you can brick the loader 
 otherwise. :)
 
-
 1541 default receiver and swap routine
 --------------------------------------
 
@@ -180,7 +179,6 @@ bit 5: NAE card detected
 bit 4-1: unused
 bit 0: new SID (8580) detected
 
-
 Save routine
 ^^^^^^^^^^^^
 
@@ -188,11 +186,13 @@ This was added for the request of game developers. It's purpose is only to save 
 few blocks on disk. It cannot create new normal or Bitfire files, it can only 
 overwrite one or a series of tracks advancing t/s by BITFIRE_CONFIG_INTERLEAVE.
 The typical usage would be saving a highscore file in Bitfire format, taking note
-of the starting t/s and using the save routine to update the file on disk.
+of the starting t/s what d64write prints and using the save routine to update the
+file on disk.
 
-There are common include files for all platforms and drives, you only have to 
-set BITFIRE_SAVE_ADDR to the load address of the save routine. The binary release
-contains precompiled save routines for all installers, they start at:
+There are common (ACME, KickAss, ...) include files for all platforms and drives, 
+you only have to set BITFIRE_SAVE_ADDR to the load address of the save routine. 
+The binary release contains precompiled save routines for all installers, they
+start at:
 
  - save_c64.prg              : $0400
  - save_plus4_1551.prg       : $0400
@@ -202,14 +202,14 @@ contains precompiled save routines for all installers, they start at:
 If this doesn't suit you just go into save/src, modify build.bat and build your
 own version.
 
-Please note that we have two routines for the Plus/4 multi loader. Let's see this
-case as an example:
+Please note that we have two routines for the Plus/4 multi loader, as it supports
+both the 1541/1551 drives. Let's see this case as an example:
 
 Let's suppose your program already intalled the Plus/4 multi loader, earlier you 
-saved a four blocks long file in Bitfire format as #0 (starting a t/s=1/0), and you 
-also saved the 1541 and 1551 save routines in Bitfire format as file #1 and #2. 
-Now, you want to overwrite file #0 with data from $2000 to $23ff. This is what you
-do:
+saved a four blocks long file in Bitfire format with d64write as #0 (starting at
+t/s=1/0), and you also saved the 1541 and 1551 save routines in Bitfire format as
+file #1 and #2. Now, you want to overwrite file #0 with data from $2000 to $23ff. 
+This is what you do:
 
     ;The save routines start at $0480, so set that address first
     ;and include "save_acme.inc"
@@ -240,17 +240,19 @@ do:
     jsr bitfire_save_write_block
 
     ;and the other three to 1/4, 1/8, 1/12
+	;the next t/s is managed by the routine  
     jsr bitfire_save_write_next_block
     jsr bitfire_save_write_next_block
     jsr bitfire_save_write_next_block
 
-    ;You may save other files here...
+    ;You may save other files here too...
 
     ;You are done but the drive's motor is still running, so you call:
     jsr bitfire_save_finish
 
 After the last jsr you can use Bitfire normally. Actually, the last jsr is 
-optional, it only stops the drive's motor.
+optional, it only stops the drive's motor. If you called finish or used any
+Bitfire load routine you have to call init again before you can save data. 
 
 Error handling, and return codes:
  - bitfire_save_init:
@@ -290,7 +292,7 @@ loader and it is still small, so you probably won't miss anything if you use it.
 The structure of the latest binary release:
  - acme/
    - acme.exe: ACME cross-assembler version 0.96.2
-   - docs/: all the docs TXT files for ACME
+   - docs/: all .txt doc files that come with the assembler
  - bitfire/
    - bitnax.exe: packer based on doynax.
    - d64write.exe: image writer tool that can copy files to disk image in normal
@@ -301,23 +303,40 @@ The structure of the latest binary release:
    - installer_plus4_multi.prg: Installer for 1541/1551 with drive detection.
    - loader_*_plus4_multi.inc: include files contating all important routine and 
        memory addresses of the 1541/1551 loader.
-   - installer_plus4_1551.prg: Inetaller for 1551 only.
-   - loader_*_plus4_1551.inc: include file for the 1551 loader.
+   - installer_plus4_1551.prg: Installer for 1551 only.
+   - loader_*_plus4_1551.inc: include file for the 1551 only loader.
    - link_macros_*.inc: useful macros for many popular cross-assemblers
-   - reset_drive.asm: reset drive routine for 1541/1551
-   - request_disc.asm: request (next) disc routine for 1541/1551
+   - reset_drive.asm: reset drive routine for all supported hardwares
+   - request_disc.asm: request (next) disc routine for all supported hardwares
  - save/
-   - save_*.prg: precompiled binaries for each installers in the package, ie.:
-     - C64 version
+   - save_*.prg: precompiled binaries for each installer in the package, ie.:
+     - C64
      - Plus/4 multi 1541/1551
      - Plus/4 1551 only  
    - save_*.inc: include files for all platforms
+   - src/: files to build your own save routines
  - example/
    - main.asm: simple example demonstrating loader installation, loading raw files and 
        loading and depacking compressed files.
    - build.bat: simple build script demostrating how to compress files for Bitfire,
        how to create disc and copy files to it in normal and bitfire format.
    - bitmap*.prg: five bitmaps
+   
+Bitfire+4 2017.09.0x:
+ - Loader resident part: $200-$3ff or smaller
+ - Loader zero page usage: $04-$0a
+ - 1541 2bit ATM double/single clock receiver routines for Plus/4
+ - 1551 8bit protocol
+ - Optional 1541 receiver swap routine for Plus/4: $400-$46c
+ - Precompiled installers for C64, Plus/4 1551 only and 1541/1551 multi installer
+ - load raw, load+decomp, decomp routines
+ - Request disc and reset drive routines for all supported hardwares
+ - Save routine for all supported hardwares, source and precompiled binaries 
+ - Basic irq handler for music, cpu clock protection, frame counter
+ - SID/CIA chip detection, missing SID detection and NAE detection 
+ - Include files and useful macros for the most popular cross-assemblers
+ - Win32 packer and image writer tool, ACME cross-assembler with documentation
+ - Simple code example and Win32 build scripts that use the included assembler
 
 Bitfire+4 2017.07.17:
  - Resident part: $200-$3ff

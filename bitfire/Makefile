@@ -6,6 +6,10 @@ CC = gcc
 
 ACME_DEFS = -DBITFIRE_PLATFORM=$(PLATFORM) -DBITFIRE_PLUS4_MODE=$(PLUS4_MODE) -DBF_PLUS4_BINCOMP=$(PLUS4_BINCOMP)
 
+SAVE_C64_ADDR = "0400"           #03e0
+SAVE_PLUS4_1551_ADDR = "0400"    #03d0
+SAVE_PLUS4_MULTI_ADDR = "0480"   #0470
+
 all: bitnax d64write installer.prg
 
 d64write: d64write.c *.h
@@ -177,7 +181,7 @@ loader_acme_plus4_multi.inc : installer_plus4_multi.prg
 loader_acme_plus4_1551.inc : installer_plus4_1551.prg
 
 save_c64.prg : save.asm sector_routines.asm drivecode_acme_1541.inc loader_acme_c64.inc
-	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=64 -DBITFIRE_SAVE_ADDR=0x0400 -DBF_DRIVE=1541 -o $@ -l save_c64.txt save.asm
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=64 -DBITFIRE_SAVE_ADDR=0x$(SAVE_C64_ADDR) -DBF_DRIVE=1541 -o $@ -l save_c64.txt save.asm
 	@grep "bitfire_save*" save_c64.txt | sed "s/\s*;\s*.*//g" | tr -d "\t" | sed 's/\$$\([0-9a-f]\{3\}$$\)/\$$0\1/' | sed "s/_offs\= / \= BITFIRE_SAVE_ADDR + /" > save_acme.inc
 	@cat save_acme.inc | sed "s/\(.*\)/const \\1/" > save_c6510.inc
 	@echo ".importonce" > save_kickass.inc
@@ -187,16 +191,16 @@ save_c64.prg : save.asm sector_routines.asm drivecode_acme_1541.inc loader_acme_
 save_acme.inc : save_c64.prg
 
 save_plus4_multi_1541.prg : save.asm sector_routines.asm drivecode_acme_1541.inc loader_acme_plus4_multi.inc
-	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0480 -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1541 -o $@ save.asm
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x$(SAVE_PLUS4_MULTI_ADDR) -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1541 -o $@ save.asm
 
 save_plus4_multi_1551.prg : save.asm sector_routines.asm drivecode_acme_1551.inc loader_acme_plus4_multi.inc
-	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0480 -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1551 -o $@ save.asm
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x$(SAVE_PLUS4_MULTI_ADDR) -DBITFIRE_PLUS4_MODE=11 -DBF_DRIVE=1551 -o $@ save.asm
 
 save_plus4_1551.prg : save.asm sector_routines.asm drivecode_acme_1551.inc loader_acme_plus4_1551.inc
-	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x0400 -DBITFIRE_PLUS4_MODE=8 -DBF_DRIVE=1551 -o $@ save.asm
+	@$(ACME) $(ACMEOPT) -DBITFIRE_PLATFORM=16 -DBITFIRE_SAVE_ADDR=0x$(SAVE_PLUS4_1551_ADDR) -DBITFIRE_PLUS4_MODE=8 -DBF_DRIVE=1551 -o $@ save.asm
 
 save_routines: save_c64.prg save_plus4_multi_1541.prg save_plus4_multi_1551.prg save_plus4_1551.prg
 	@echo "All save routines are compiled!"
 
 clean:
-	@-rm bitnax d64write installer*.prg loader_*.inc resident resident_15* resident_save*.prg resident*.txt *.lst drivecode*.inc
+	@-rm bitnax d64write installer*.prg save*.prg loader_*.inc resident resident_15* resident_save*.prg resident*.txt *.lst drivecode*.inc

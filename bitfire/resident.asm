@@ -503,11 +503,15 @@ bitfire_load_addr_lo = * + 1
 
 !if (BF_PLUS4_BINCOMP>0 and BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541DC) {
 
-		nop
-		nop
-		nop
-		nop
-		nop
+		;nop
+		;nop
+		;nop
+		;nop
+		;nop
+		;This is 5 bytes from the SC case, the swap routine 
+		;can be
+		;5 bytes shorter! \o/
+		!byte $0f,$20,$82,$02,$60
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
@@ -946,10 +950,10 @@ bitfire_plus4_swap_receiver:
 
 !if BITFIRE_DECOMP = 1 {
 .dest = BITFIRE_RESIDENT_ADDR + 110 	;this is based on binary comparison results, don't touch
-.swap_data_len = 195-110+1
+.swap_data_len = 195-110+1-5
 } else {
 .dest = BITFIRE_RESIDENT_ADDR + 94 	;this is based on binary comparison results, don't touch
-.swap_data_len = 184-94+1
+.swap_data_len = 184-94+1-5
 }
 
 	ldx #.swap_data_len
