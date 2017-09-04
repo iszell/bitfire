@@ -20,26 +20,42 @@ This is a Plus/4 port of Bitfire. Bitfire is a modern IRQ loader for C64 and
 the 1541 with its own lz packer, BAM compatible file format and image writer
 tool, that has a really small memory footprint. Please read readme.txt for
 further details.
+Bitfire+4 also contains a save routine for both platforms.
 
 Differences from the C64 version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First of all, the Bitfire+4 source code can be compiled to both platforms, this is driven
 by the BITFIRE_PLATFORM constant in bitfire/config.inc. If you set BITFIRE_C64 there you
-can compile original C64 version of the loader (it is set to BITFIRE_PLUS4 by default).
+can compile the original C64 version of the loader (it is set to BITFIRE_PLUS4 by default). 
+The Bitfire+4 binary releas contants the C64 verion of the loader too.
 A few things just doesn't make sense on Plus/4, like the NMI gap, link_load_next_double, 
-link_decomp_under_io, CIA detection. You won't find those in the Plus/4 version.
-The SID base address is not obvious on Plus/4, you have to change BITFIRE_SID if that is
-not $FD40 for you. ($FD40 is recommended of course.) The type of the SID chip or missing 
-SID is detected correctly by the installer and NST's Audio Extension (NAE) is also 
+link_decomp_under_io, CIA detection. You won't find those in the Plus/4 version of the
+loader. The SID base address is not obvious on Plus/4, you have to change BITFIRE_SID if
+that is not $FD40 for you. ($FD40 is recommended of course.) The type of the SID chip or 
+missing SID is detected correctly by the installer and NST's Audio Extension (NAE) is also 
 detected.
 Bitnax has a new option --plus4 that will create a Plus/4 executable when used with
 the --sfx <addr> option.
-The biggest difference is that Bitfire+4 comes with multiple transfer routines. You can
-read more about the two 2bit receivers for the 1541 and the 1551 protocol below.
+The biggest difference between the C64 and the Plus/4 loader is that the Plus/4 loader 
+comes with multiple transfer routines. You can read more about the two 2bit receivers 
+for the 1541 and the 1551 protocol below.
 
-Protocols
-^^^^^^^^^
+How to build from source
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We recommend to use the precompiled version, but if you want to compile for yourself go 
+into the bitfire folder and use "make". This will create an installer and include files
+based on config.inc (see readme.txt)
+
+"make installers" will build Bitfire for all supported platforms and drives and it will
+create an installer_*.prg and a bunch of loader_*.inc files for each.
+
+"make save_routines" will compile the save routine (save_*.prg) and create common include
+files (save_*.inc) for all supported platforms and drives. See more details below.
+
+Plus/4 protocols and receivers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1541 2bit ATN double clock receiver
 -----------------------------------
@@ -164,6 +180,90 @@ bit 5: NAE card detected
 bit 4-1: unused
 bit 0: new SID (8580) detected
 
+
+Save routine
+^^^^^^^^^^^^
+
+This was added for the request of game developers. It's purpose is only to save a
+few blocks on disk. It cannot create new normal or Bitfire files, it can only 
+overwrite one or a series of tracks advancing t/s by BITFIRE_CONFIG_INTERLEAVE.
+The typical usage would be saving a highscore file in Bitfire format, taking note
+of the starting t/s and using the save routine to update the file on disk.
+
+There are common include files for all platforms and drives, you only have to 
+set BITFIRE_SAVE_ADDR to the load address of the save routine. The binary release
+contains precompiled save routines for all installers, they start at:
+
+ - save_c64.prg              : $0400
+ - save_plus4_1551.prg       : $0400
+ - save_plus4_multi_1541.prg : $0480
+ - save_plus4_multi_1551.prg : $0480
+
+If this doesn't suit you just go into save/src, modify build.bat and build your
+own version.
+
+Please note that we have two routines for the Plus/4 multi loader. Let's see this
+case as an example:
+
+Let's suppose your program already intalled the Plus/4 multi loader, earlier you 
+saved a four blocks long file in Bitfire format as #0 (starting a t/s=1/0), and you 
+also saved the 1541 and 1551 save routines in Bitfire format as file #1 and #2. 
+Now, you want to overwrite file #0 with data from $2000 to $23ff. This is what you
+do:
+
+    ;The save routines start at $0480, so set that address first
+    ;and include "save_acme.inc"
+
+    BITFIRE_SAVE_ADDR = $0480
+    !src "../save/save_acme.inc"
+
+    ;Load the right save routine depending on the drive type.
+    lda #1               ; 1541
+    bit link_drive_type
+    bpl *+4              ; unless
+    lda #2               ; 1551
+    jsr bitfire_loadraw_
+
+    ;Init the save routine. This will upload code to the drive memory and start
+    ;the drive's motor.
+    jsr bitfire_save_init
+
+    ;Set up what you want to save
+    lda #$00
+    sta bitfire_save_data_ptr
+    lda #$20
+    sta bitfire_save_data_ptr + 1
+
+    ;Save the first block to t/s: 1/0
+    ldx #1
+    ldy #0
+    jsr bitfire_save_write_block
+
+    ;and the other three to 1/4, 1/8, 1/12
+    jsr bitfire_save_write_next_block
+    jsr bitfire_save_write_next_block
+    jsr bitfire_save_write_next_block
+
+    ;You may save other files here...
+
+    ;You are done but the drive's motor is still running, so you call:
+    jsr bitfire_save_finish
+
+After the last jsr you can use Bitfire normally. Actually, the last jsr is 
+optional, it only stops the drive's motor.
+
+Error handling, and return codes:
+ - bitfire_save_init:
+   - X=0: all OK
+   - X=1: write protected disk
+ - bitfire_save_write_block, bitfire_save_write_next_block:
+   - X=0: all OK
+   - X=1: write protected disk
+   - X=2: no sync
+   - X=3: sector not found
+   - X=4: write failed
+
+
 Toubleshooting tips
 ^^^^^^^^^^^^^^^^^^^
 
@@ -190,10 +290,14 @@ loader and it is still small, so you probably won't miss anything if you use it.
 The structure of the latest binary release:
  - acme/
    - acme.exe: ACME cross-assembler version 0.96.2
+   - docs/: all the docs TXT files for ACME
  - bitfire/
    - bitnax.exe: packer based on doynax.
    - d64write.exe: image writer tool that can copy files to disk image in normal
        and Bitfire format.
+   - installer_c64.prg: The original C64 version of Bitfire.
+   - loader_*_c64.inc: include files contating all important routine and 
+       memory addresses of the C64 loader.
    - installer_plus4_multi.prg: Installer for 1541/1551 with drive detection.
    - loader_*_plus4_multi.inc: include files contating all important routine and 
        memory addresses of the 1541/1551 loader.
@@ -202,6 +306,12 @@ The structure of the latest binary release:
    - link_macros_*.inc: useful macros for many popular cross-assemblers
    - reset_drive.asm: reset drive routine for 1541/1551
    - request_disc.asm: request (next) disc routine for 1541/1551
+ - save/
+   - save_*.prg: precompiled binaries for each installers in the package, ie.:
+     - C64 version
+     - Plus/4 multi 1541/1551
+     - Plus/4 1551 only  
+   - save_*.inc: include files for all platforms
  - example/
    - main.asm: simple example demonstrating loader installation, loading raw files and 
        loading and depacking compressed files.
