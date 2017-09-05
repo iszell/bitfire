@@ -424,7 +424,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		rts
 
 ;	Check block header on disk:
-.d_i_waitblock	lda	#50
+.d_i_waitblock	lda	#250
 		sta	.sectorcnt
 --		jsr	.d_i_waitsync
 		bcs	.d_i_errornosy
