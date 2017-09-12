@@ -80,34 +80,51 @@ because of single clock mode and interrupt blocking mentioned earlier. To make s
 code (eg. your sid/ted music player and other code you run in irq) doesn't slow down, you 
 have to do something like this:
 
+	pha             ;store A
 	lda $ff13
 	pha             ;store current state of $ff13
 	and #$fd        ;and clear the single clock bit
 	sta $ff13       ;to run in double clock mode
+	tya
+	phq             ;store Y
+	txa
+	pha             ;store X
 	
 	...
 	
-	pla             ;restore previous state
-	sta $ff13
+	pla
+	tax             ;restore X
+	pla
+	tay             ;restore Y
+	pla
+	sta $ff13       ;restore $ff13
+	pla             ;restore A
+	rti
 
 The default interrupt handler starting at link_player ($202) has this double clock
 protection feature by default in 1541 mode.
 
 A more advanced way to restore the clock bit looks something like this:
 
-    ...
+	...
     
-    pla             ;this is the stored value of $ff13
-    and #2          ;but only the clock bit
-    ora $ff13       ;needs to be
-    sta $ff13       ;restored
+	pla
+	tax             ;restore X
+	pla
+	tay             ;restore Y
+	pla             ;this is the stored value of $ff13
+	and #2          ;but only the clock bit
+	ora $ff13       ;needs to be
+	sta $ff13       ;restored
+	pla             ;restore A
+	rti
 
 The above code only restores the clock bit (assuming that is remains zero after it was
 cleared) and allows the change of the other bits of $ff13.
 
-And some more advanced stuff: If you don't modify $ff13 in your irq routines, you can 
-disable an unnecessary SEI in the single clock receiver that can delay your intererupts
-for no good reason:
+And some even more advanced stuff: If you don't modify $ff13 in your irq routines, you
+can disable an unnecessary SEI in the single clock receiver that can only delay your
+intererupts for no good reason:
 
 	bit link_drive_type          ;$3ff
 	bmi *+7                      ;skip if 1551
@@ -159,12 +176,12 @@ process if you want.
 The MSB (bit 7) of link_drive_type ($3ff) is one if Bitfire is using a 1551 drive, so
 it is easy to handle the 1541/1551 cases like this
 
-  bit link_drive_type
-  bmi .case1551
-  ...
+	bit link_drive_type
+	bmi .case1551
+	...
 
-.case1551
-  ...
+.case1551:
+	...
 
 Hardware detection
 ^^^^^^^^^^^^^^^^^^
@@ -211,44 +228,44 @@ t/s=1/0), and you also saved the 1541 and 1551 save routines in Bitfire format a
 file #1 and #2. Now, you want to overwrite file #0 with data from $2000 to $23ff. 
 This is what you do:
 
-    ;The save routines start at $0480, so set that address first
-    ;and include "save_acme.inc"
+	;The save routines start at $0480, so set that address first
+	;and include "save_acme.inc"
 
-    BITFIRE_SAVE_ADDR = $0480
-    !src "../save/save_acme.inc"
+	BITFIRE_SAVE_ADDR = $0480
+	!src "../save/save_acme.inc"
 
-    ;Load the right save routine depending on the drive type.
-    lda #1               ; 1541
-    bit link_drive_type
-    bpl *+4              ; unless
-    lda #2               ; 1551
-    jsr bitfire_loadraw_
+	;Load the right save routine depending on the drive type.
+	lda #1               ; 1541
+	bit link_drive_type
+	bpl *+4              ; unless
+	lda #2               ; 1551
+	jsr bitfire_loadraw_
 
-    ;Init the save routine. This will upload code to the drive memory and start
-    ;the drive's motor.
-    jsr bitfire_save_init
+	;Init the save routine. This will upload code to the drive memory and 
+	;start the drive's motor.
+	jsr bitfire_save_init
 
-    ;Set up what you want to save
-    lda #$00
-    sta bitfire_save_data_ptr
-    lda #$20
-    sta bitfire_save_data_ptr + 1
+	;Set up what you want to save
+	lda #$00
+	sta bitfire_save_data_ptr
+	lda #$20
+	sta bitfire_save_data_ptr + 1
 
-    ;Save the first block to t/s: 1/0
-    ldx #1
-    ldy #0
-    jsr bitfire_save_write_block
+	;Save the first block to t/s: 1/0
+	ldx #1
+	ldy #0
+	jsr bitfire_save_write_block
 
-    ;and the other three to 1/4, 1/8, 1/12
+	;and the other three to 1/4, 1/8, 1/12
 	;the next t/s is managed by the routine  
-    jsr bitfire_save_write_next_block
-    jsr bitfire_save_write_next_block
-    jsr bitfire_save_write_next_block
+	jsr bitfire_save_write_next_block
+	jsr bitfire_save_write_next_block
+	jsr bitfire_save_write_next_block
 
-    ;You may save other files here too...
+	;You may save other files here too...
 
-    ;You are done but the drive's motor is still running, so you call:
-    jsr bitfire_save_finish
+	;You are done but the drive's motor is still running, so you call:
+	jsr bitfire_save_finish
 
 After the last jsr you can use Bitfire normally. Actually, the last jsr is 
 optional, it only stops the drive's motor. If you called finish or used any
@@ -271,6 +288,9 @@ Toubleshooting tips
 
 - Don't try to load and decompress or decompress under ROM area when it is enabled.
 - Make sure $04-$0a is only used by Bitfire while loading.
+- If your code slows down while loading from 1541 and runs ok with 1551 you likely 
+  forgot about $ff13's clock bit. Please see the section about the single clock 
+  receiver above. 
 - If loading works with 1551 and doesn't work with 1541:
   - Make sure you don't ruin the resident part somehow ($200-$3ff), the 1551 
   version of the resident is full of NOPs to fill up gaps, so it may have 
