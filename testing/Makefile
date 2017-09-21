@@ -92,5 +92,5 @@ force:
 	@true
 
 clean:
-	rm test*.prg *.d64 *.lz || true
+	rm *test*.prg *.d64 *.lz || true
 	make -C ../bitfire clean

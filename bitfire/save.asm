@@ -1,5 +1,8 @@
-!src "drivecode_acme_1541.inc"
-!src "drivecode_acme_1551.inc"
+!if BF_DRIVE = 1541 {
+  !src "drivecode_acme_1541.inc"
+} else {
+  !src "drivecode_acme_1551.inc"
+}
 
 !if (BITFIRE_PLATFORM=64) {
   !src "loader_acme_c64.inc"

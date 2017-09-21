@@ -191,9 +191,8 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 .wait_drv_idle
 		clc
 		pha
-		jsr	++
-		jsr	++
-		jsr	++
+		jsr	.waste12
+		jsr	.waste24
 !if (BITFIRE_PLATFORM = BITFIRE_C64) {
 		lda	#$3f
 		sta	$dd02			;Release bus
@@ -203,8 +202,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		bvs	+
 		lda	#$37
 		sta	$dd02
-		jsr	++
-		jsr	++
+		jsr	.waste24
 		lda	$dd00
 		asl
 		rol
@@ -225,9 +223,8 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		bvs	+
 		lda	#%11001100		;ATN drive
 		sta	$01
-		jsr	++
-		jsr	++
-		jsr	++
+		jsr	.waste12
+		jsr	.waste24
 		lda	$01
 		asl
 		rol
@@ -244,8 +241,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		bit	$fef0
 		bvs	+
 		inc	$fef4
-		jsr	++
-		jsr	++
+		jsr	.waste24
 		lda	$fef0
 		and	#%00000011
 		tax
@@ -255,7 +251,11 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
   }
 }
 +		pla
-++		rts
+.waste12
+		rts
+.waste24
+		jsr *+3
+		rts
 
 ;	Send BYTE to drive:
 .sendbyte_todrv
@@ -415,8 +415,10 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
 		rts
 +		
   !if (BF_DRIVE = 1541) {				;===== 1541
+		bit	$1c01			;Read PortA: prev. latched data accepted, ready for next latch
 		clv
   } else {						;===== 1551
+		bit	$4001
 		bit	$4001
   }
 		ldy	#0
@@ -653,7 +655,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
   } else {						;===== 1551
 		bit	$01
 		bpl	*-2
-		bit	$4001
+		;bit	$4001
 		sta	$4001
   }
 		iny
@@ -667,7 +669,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
   } else {						;===== 1551
 		bit	$01
 		bpl	*-2
-		bit	$4001
+		;bit	$4001
 		sta	$4001
   }
 		iny
@@ -725,6 +727,7 @@ bitfire_save_init_offs = * - BITFIRE_SAVE_ADDR
   }
 		bne	.d_d_errorvfye		;If not same, retry...?
 		iny
+		cpy	#$fe			;All bytes checked?
 		bne	-
 
 		jmp	.d_i_setidle		;Verify OK, idle
