@@ -283,6 +283,19 @@ Error handling, and return codes:
    - X=4: write failed
 
 
+Bootdisk
+^^^^^^^^
+
+I call bootdisk an essentially empty disk that only has an small prg on it that 
+installs Bitfire, loads one or two files and stars your prod.
+The bootdisk folder of the binary release has a batch file that creates bootdisks
+for you. Modify it to set your disk header, disk id, etc. You can even use a 
+simple screen dump for dir art, see the example in the folder.
+The boot prg will load one or two (depending on your setting) compressed files 
+and jump to the addess you specified. So, you only need to bitnax your files, copy
+them to the disk in bitfire format (with d64write) and you are good to go.
+
+
 Toubleshooting tips
 ^^^^^^^^^^^^^^^^^^^
 
@@ -328,6 +341,9 @@ The structure of the latest binary release:
    - link_macros_*.inc: useful macros for many popular cross-assemblers
    - reset_drive.asm: reset drive routine for all supported hardwares
    - request_disc.asm: request (next) disc routine for all supported hardwares
+ - bootdisk/
+   - build.bat: creates two bootdisks (one with disk header+id, one with dir art)
+       based on the setting in the file.
  - save/
    - save_*.prg: precompiled binaries for each installer in the package, ie.:
      - C64
@@ -342,6 +358,22 @@ The structure of the latest binary release:
        how to create disc and copy files to it in normal and bitfire format.
    - bitmap*.prg: five bitmaps
    
+Bitfire+4 2017.09.25:
+ - Loader resident part: $200-$3ff or smaller
+ - Loader zero page usage: $04-$0a
+ - 1541 2bit ATM double/single clock receiver routines for Plus/4
+ - 1551 8bit protocol
+ - Optional 1541 receiver swap routine for Plus/4: $400-$46c
+ - Precompiled installers for C64, Plus/4 1551 only and 1541/1551 multi
+ - load raw, load+decomp, decomp routines
+ - Request disc and reset drive routines for all supported hardwares
+ - Save routine for all supported hardwares, source and precompiled binaries 
+ - Basic irq handler for music, cpu clock protection, frame counter
+ - SID/CIA chip detection, missing SID detection and NAE detection 
+ - Include files and useful macros for the most popular cross-assemblers
+ - Win32 packer and image writer tool, ACME cross-assembler with documentation
+ - Simple code example and Win32 build scripts that use the included assembler
+ - Build script for bootdisk creation with optional dir art.
 
 Bitfire+4 2017.09.05:
  - Loader resident part: $200-$3ff or smaller
