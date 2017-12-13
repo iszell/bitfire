@@ -1,3 +1,6 @@
+; This is a simple example program that loads five raw bitmap files 
+; and five compressed bitmap files in an infinite loop.
+
 
 !src "../bitfire/loader_acme_plus4_multi.inc"
 
@@ -12,6 +15,7 @@ ColorRam = $1800
 
 main:
 
+	;Install Bitfire
 	jsr bitfire_install_
 
 	sei
@@ -73,14 +77,18 @@ irq:
 	rti
 
 loop:
+	;Load first uncompressed Bitfire file
 	lda #0
 	jsr bitfire_loadraw_
+	;Load next uncompressed Bitfire file
 	jsr link_load_next_raw
 	jsr link_load_next_raw
 	jsr link_load_next_raw
 	jsr link_load_next_raw
 
 !if BITFIRE_DECOMP = 1 {
+
+	;Load and unpack next compressed Bitfire file
 	jsr link_load_next_comp
 	jsr link_load_next_comp
 	jsr link_load_next_comp

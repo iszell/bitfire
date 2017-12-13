@@ -18,10 +18,10 @@
 
 
 ..\acme\acme.exe -f cbm -o boot.prg -DLOAD=%LOADCOMP% -DSTART=0x%START_ADDR% -DPLATFORM=%PLATFORM% boot.asm
-if %PLATFORM% equ 16 (
+@if %PLATFORM% equ 16 (
   ..\bitfire\bitnax.exe --sfx 4352 --plus4 -o boot boot.prg
 )
-if %PLATFORM% equ 64 (
+@if %PLATFORM% equ 64 (
   ..\bitfire\bitnax.exe --sfx 4352 -o boot boot.prg
 )
 ..\bitfire\d64write.exe -c boot_load%LOADCOMP%_g%START_ADDR%.d64 -h %YOUR_HEADER% -i %YOUR_ID% --side 1 --boot boot

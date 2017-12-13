@@ -15,16 +15,14 @@ NAE:
 
 What is this?
 ^^^^^^^^^^^^^
-
-This is a Plus/4 port of Bitfire. Bitfire is a modern IRQ loader for C64 and
-the 1541 with its own lz packer, BAM compatible file format and image writer
-tool, that has a really small memory footprint. Please read readme.txt for
-further details.
+This is a Plus/4 port of Bitfire. Bitfire is a modern IRQ loader for C64 and the 1541 with 
+its own lz packer, BAM compatible file format and image writer tool, that has a really 
+small memory footprint. Please read readme.txt for further details.
 Bitfire+4 also contains a save routine for both platforms.
+
 
 Differences from the C64 version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 First of all, the Bitfire+4 source code can be compiled to both platforms, this is driven
 by the BITFIRE_PLATFORM constant in bitfire/config.inc. If you set BITFIRE_C64 there you
 can compile the original C64 version of the loader (it is set to BITFIRE_PLUS4 by default). 
@@ -41,18 +39,19 @@ The biggest difference between the C64 and the Plus/4 loader is that the Plus/4 
 comes with multiple transfer routines. You can read more about the two 2bit receivers 
 for the 1541 and the 1551 protocol below.
 
+
 How to build from source
 ^^^^^^^^^^^^^^^^^^^^^^^^
-
 We recommend to use the precompiled version, but if you want to compile for yourself go 
-into the bitfire folder and use "make". This will create an installer and include files
-based on config.inc (see readme.txt)
+into the bitfire folder and use "make". This will create "bitnax", "d64write" and an 
+installer and include files based on config.inc (see readme.txt)
 
 "make installers" will build Bitfire for all supported platforms and drives and it will
 create an installer_*.prg and a bunch of loader_*.inc files for each.
 
 "make save_routines" will compile the save routine (save_*.prg) and create common include
 files (save_*.inc) for all supported platforms and drives. See more details below.
+
 
 Plus/4 protocols and receivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -159,7 +158,7 @@ Even 18 cycles is possible if you have a faster TIA replacement like BSZ in his
 hacked 1551 (used to be 1541) drive. 
 
 1541/1551 multi installer
-------------------------------
+-------------------------
 
 This installer has the resident and drive code for both drives, and it tries to use
 a 1551 drive if available. The residen parts are made binary compatible for this
@@ -183,9 +182,9 @@ it is easy to handle the 1541/1551 cases like this
 .case1551:
 	...
 
+	
 Hardware detection
 ^^^^^^^^^^^^^^^^^^
-
 The installer detects the drive type, and popular Plus/4 hardware extensions. The 
 detection results are stored in link_drive_type, link_chip_types, link_sid_types
 all pointing to $03ff. The meaning of its bits are:
@@ -196,9 +195,9 @@ bit 5: NAE card detected
 bit 4-1: unused
 bit 0: new SID (8580) detected
 
+
 Save routine
 ^^^^^^^^^^^^
-
 This was added for the request of game developers. It's purpose is only to save a
 few blocks on disk. It cannot create new normal or Bitfire files, it can only 
 overwrite one or a series of tracks advancing t/s by BITFIRE_CONFIG_INTERLEAVE.
@@ -285,7 +284,6 @@ Error handling, and return codes:
 
 Bootdisk
 ^^^^^^^^
-
 I call bootdisk an essentially empty disk that only has an small prg on it that 
 installs Bitfire, loads one or two files and stars your prod.
 The bootdisk folder of the binary release has a batch file that creates bootdisks
@@ -298,7 +296,6 @@ them to the disk in bitfire format (with d64write) and you are good to go.
 
 Toubleshooting tips
 ^^^^^^^^^^^^^^^^^^^
-
 - Don't try to load and decompress or decompress under ROM area when it is enabled.
 - Make sure $04-$0a is only used by Bitfire while loading.
 - If your code slows down while loading from 1541 and runs ok with 1551 you likely 
@@ -315,7 +312,6 @@ Toubleshooting tips
 
 Binary Release
 ^^^^^^^^^^^^^^
-
 The purpose of the binary release is to provide you with the compiled version of
 Bitfire+4. You don't have to have Linux/Cygwin, etc. installed in order to start 
 using the loader, but you can always download the source from GitHub and compile it
@@ -358,6 +354,12 @@ The structure of the latest binary release:
        how to create disc and copy files to it in normal and bitfire format.
    - bitmap*.prg: five bitmaps
    
+
+Bitfire+4 2017.12.13:
+ - Same as previous release plus some d64write improvements:
+   - fixed number of sectors and last_sect_size message
+   - no boot file size limitation, it can overflow the directory track
+ 
 Bitfire+4 2017.09.25:
  - Loader resident part: $200-$3ff or smaller
  - Loader zero page usage: $04-$0a
