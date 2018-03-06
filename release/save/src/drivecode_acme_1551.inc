@@ -1,0 +1,16 @@
+drivecode_51_launch = $030c
+drivecode_51_filenum = $6f
+drivecode_51_to_track = $5b
+drivecode_51_head_lo = $4b
+drivecode_51_IDLE = $ff
+drivecode_51_getbyte = $043f
+drivecode_51_pullcomm = $0314
+drivecode_51_preamb_hi = $9b
+drivecode_51_preamb_lo = $3b
+drivecode_51_TCPULED_ON = $f7
+drivecode_51_dirsect = $a6
+drivecode_51_seek = $03b7
+drivecode_51_BUSY = $7f
+drivecode_51_motoron = $0429
+drivecode_51_sector = $5c
+drivecode_51_BLOCK_RDY = $bf

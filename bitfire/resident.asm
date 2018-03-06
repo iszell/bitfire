@@ -929,7 +929,7 @@ link_sid_type			;%00000001	;bit set = new, bit cleared = old
 link_cia1_type			;%00000010
 link_cia2_type			;%00000100
 } else {
-	link_drive_type
+link_drive_type
 }
 
 !if BF_DRIVE = 1541 {
@@ -975,9 +975,9 @@ bitfire_plus4_swap_receiver:
 .swap_data:
 
 !if BITFIRE_PLUS4_MODE = BITFIRE_PLUS4_1541SC {
-!bin "resident_p4_41dc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+!bin "resident_plus4_1541dc_bincomp", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
 } else {
-!bin "resident_p4_41sc", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
+!bin "resident_plus4_1541sc_bincomp", .swap_data_len, 2+.dest-BITFIRE_RESIDENT_ADDR
 }
 
 }
