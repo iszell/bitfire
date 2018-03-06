@@ -89,8 +89,8 @@ bitmap%.lz : bitmap%.prg $(LZ)
 	$(LZ) --bitfire -o $@ $<
 
 force:
-	@-echo
+	@true
 
 clean:
-	@-rm *test*.prg *.d64 *.lz
+	rm *test*.prg *.d64 *.lz || true
 	make -C ../bitfire clean
