@@ -587,9 +587,9 @@ unlisten     = $ffae
 
 !ifdef MULTI_INST {
   !if (BF_DRIVE = 1541) {
-	!bin "resident_1541sc",,2
+	!bin "resident_plus4_1541sc_bincomp",,2
   } else {
-	!bin "resident_1551",,2  
+	!bin "resident_plus4_1551_bincomp",,2  
   }
 } else {
 	!bin "resident",,2
