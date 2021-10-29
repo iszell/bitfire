@@ -1,5 +1,9 @@
 How to create a release:
 
+
+With Docker:
+^^^^^^^^^^^
+
 1. Create a docker image that has everything needed for building Bitfire:
 
  $ docker build -t bf .
@@ -11,3 +15,14 @@ How to create a release:
 3. Delete the docker image when you don't need it anymore
 
  $ docker rmi bf
+
+
+Without Docker:
+^^^^^^^^^^^^^^
+
+1. Look into Dockerfile to see what packages to install and install them. :)
+2. Also follow instuctions in the file to create everything in $HOME/tools/acme
+3. Run this in the bitfire directory:
+
+ $ sh create_release.sh
+
