@@ -1075,7 +1075,7 @@ readdisk_1551	sta	.rd51_markcmp+1
 		sbc .directory + $ff	;compare side info
 		bne .turn_disc_		;nope, not the requested side
 		sta .filenum		;reset filenum
-		top
+		beq .drivecode_launch
 .idle
 		inc .filenum		;autoinc always, so thet load_next will also load next file after a load with filenum
 		dec .firstblock
