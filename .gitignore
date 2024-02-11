@@ -1,0 +1,14 @@
+*.o
+*.exe
+*.lst
+*.prg
+*.d64
+!Makefile
+!*.asm
+drive/*
+gen-includes/*
+installer/*
+resident/*
+sectorwriter/*
+teststuffs/*
+
