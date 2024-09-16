@@ -15,7 +15,11 @@ all: $(PROGS)
 
 acme: $(OBJS)
 	$(CC) $(CFLAGS) -o acme $(OBJS) $(LIBS)
-	@strip acme
+	ifeq ($(OS),Windows_NT)
+		@strip acme.exe
+	else
+		@strip acme
+	endif
 	@cp $(PROGS) ../../
 
 
