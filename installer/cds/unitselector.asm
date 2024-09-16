@@ -449,8 +449,10 @@ unitsel_novcpusupport
   !if (BITFIRE_FSDV_40TRK = 1) {
 		!text	" (r2 is required for 40 track images.)",ascii_cr
   }
-		!text	ascii_cr," for further information, see:",ascii_cr,ascii_cr
-		!text	"        ",ascii_col2,"bsz.amigaspirit.hu/vcpu",ascii_col1,ascii_cr,0
+		!text	ascii_cr," for further information, see",ascii_cr,ascii_cr
+		!text	"       ",ascii_col2,"bsz.amigaspirit.hu/vcpu",ascii_col1," or",ascii_cr
+		!text	"       ",ascii_col2,"bsz.siz.hu/vcpu",ascii_col1,ascii_cr
+		!text	ascii_cr," for details.",ascii_cr,0
 }
 
 !if (BITFIRE_PLATFORM = BITFIRE_PLUS4) {
