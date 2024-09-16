@@ -34,6 +34,7 @@ test-spdtst:
 	@$(MAKE) -C teststuffs/speedmeter
 
 clean:
+	@rm -rf gen-includes gen-binaries
 	@$(MAKE) -C utils/acme-src/src clean
 	@$(MAKE) -C drive clean
 	@$(MAKE) -C resident clean

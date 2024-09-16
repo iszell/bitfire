@@ -21,6 +21,7 @@ define genr_includes
 	@#cat $(2)-acme.inc | grep "BITFIRE" | sed "s/BITFIRE/\.var BITFIRE/" >> $(2)-kickass.inc
 	@cat $(2)-acme.inc | sed "s/\(.*\)/\.var \\1/" >> $(2)-kickass.inc
 	@#echo "}" >> loader_kickass.inc
+	@mkdir -p $(GENINCDIR)
 	@cp $(2)-*.inc $(GENINCDIR)
 endef
 
@@ -43,6 +44,7 @@ save-resi-c64-41: save-resi-c64-41.asm save-resident.asm save-drive-41 ../config
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c64-41, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-41sc: save-resi-c264-41sc.asm save-resident.asm save-drive-41 ../config/config.inc $(ACME)
