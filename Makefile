@@ -1,4 +1,8 @@
-all: acme drivecodes residents sectorwriters drivecode-fsdv installers bitnax d64write1 test-loaddecomp test-savetest test-spdtst
+all: gendirs acme drivecodes residents sectorwriters drivecode-fsdv installers bitnax d64write1 test-loaddecomp test-savetest test-spdtst
+
+gendirs:
+	@mkdir gen-binaries
+	@mkdir gen-includes
 
 acme:
 	@$(MAKE) -C utils/acme-src/src
