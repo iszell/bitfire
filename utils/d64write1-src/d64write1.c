@@ -773,6 +773,7 @@ int main(int argc, char *argv[]) {
     int boot_track = 0;
     int lines = 0;
     int dir_art = 0;
+    int dir_art_pet = 0;
     int interleave = FILE_INTERLEAVE;
     int format = 0;
     int printbfdir = 0;
@@ -891,6 +892,10 @@ int main(int argc, char *argv[]) {
                 fatal_message("missing path for option '%s'\n", argv[c-1]);
             }
             dir_art = 1;
+            if(strcmp(".pet", art_path+strlen(art_path-4))) {
+                dir_art_pet = 1;
+                printf("PETSCII dirart provided\n");
+            }
         }
         else {
             fatal_message("unknown option '%s'\n", argv[c]);
@@ -937,10 +942,10 @@ int main(int argc, char *argv[]) {
     // Small hack: create temporary dirart (allocate blocks for dirart on (primary) dirtrack)
     if(dir_art) {
         art[0] = 0;		// Set direntry CBM name to ""
-	j = lines;
-	while(j) {
-	    d64_create_direntry(&d64, art, 0, 255, interleave, FILETYPE_PRG, j);
-	    j--;
+	    j = lines;
+	    while(j) {
+            d64_create_direntry(&d64, art, 0, 255, interleave, FILETYPE_PRG, j);
+            j--;
         }
         d64.track_link = D64_BAM_TRACK;
         d64.sector_link = D64_BAM_SECTOR;	// If dirart is set but no boot file, will be set BAM "file" to all dirart entries
