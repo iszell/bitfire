@@ -4,6 +4,13 @@ LIBS		= -lm
 CC		= gcc
 RM		= rm
 
+ifeq ($(OS),Windows_NT)
+	EXT = .exe
+else
+	EXT =
+endif
+
+
 #SRC		=
 
 PROGS		= acme
@@ -15,13 +22,8 @@ all: $(PROGS)
 
 acme: $(OBJS)
 	$(CC) $(CFLAGS) -o acme $(OBJS) $(LIBS)
-	ifeq ($(OS),Windows_NT)
-		@strip acme.exe
-	else
-		@strip acme
-	endif
+	@strip acme$(EXT)
 	@cp $(PROGS) ../../
-
 
 acme.o: config.h platform.h acme.h alu.h cpu.h dynabuf.h encoding.h flow.h global.h input.h macro.h mnemo.h output.h pseudoopcodes.h section.h symbol.h version.h acme.h acme.c
 
