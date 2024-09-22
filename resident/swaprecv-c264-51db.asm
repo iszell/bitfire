@@ -1,0 +1,9 @@
+BITFIRE_PLATFORM	=	16	;BITFIRE_PLUS4
+
+!src "../config/config.inc"
+
+BF_DRIVE		=	1551
+BITFIRE_PLUS4_MODE	=	BITFIRE_PLUS4_1541DC
+BF_PLUS4_BINCOMP	=	2
+
+!src "swaprecv-c264.asm"

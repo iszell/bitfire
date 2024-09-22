@@ -1,1 +1,0 @@
-This is a temporary directory containing some basic testing of the plus4 port of the loader.
