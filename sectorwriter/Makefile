@@ -21,6 +21,7 @@ define genr_includes
 	@#cat $(2)-acme.inc | grep "BITFIRE" | sed "s/BITFIRE/\.var BITFIRE/" >> $(2)-kickass.inc
 	@cat $(2)-acme.inc | sed "s/\(.*\)/\.var \\1/" >> $(2)-kickass.inc
 	@#echo "}" >> loader_kickass.inc
+	@mkdir -p $(GENINCDIR)
 	@cp $(2)-*.inc $(GENINCDIR)
 endef
 
@@ -43,6 +44,7 @@ save-resi-c64-41: save-resi-c64-41.asm save-resident.asm save-drive-41 ../config
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c64-41, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-41sc: save-resi-c264-41sc.asm save-resident.asm save-drive-41 ../config/config.inc $(ACME)
@@ -50,6 +52,7 @@ save-resi-c264-41sc: save-resi-c264-41sc.asm save-resident.asm save-drive-41 ../
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c264-41sc, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-41dc: save-resi-c264-41dc.asm save-resident.asm save-drive-41 ../config/config.inc $(ACME)
@@ -57,6 +60,7 @@ save-resi-c264-41dc: save-resi-c264-41dc.asm save-resident.asm save-drive-41 ../
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c264-41dc, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-51dc: save-resi-c264-51dc.asm save-resident.asm save-drive-51 ../config/config.inc $(ACME)
@@ -64,6 +68,7 @@ save-resi-c264-51dc: save-resi-c264-51dc.asm save-resident.asm save-drive-51 ../
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c264-51dc, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-41multi: save-resi-c264-41multi.asm save-resident.asm save-drive-41 ../config/config.inc $(ACME)
@@ -71,6 +76,7 @@ save-resi-c264-41multi: save-resi-c264-41multi.asm save-resident.asm save-drive-
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c264-41multi, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 save-resi-c264-51multi: save-resi-c264-51multi.asm save-resident.asm save-drive-51 ../config/config.inc $(ACME)
@@ -78,6 +84,7 @@ save-resi-c264-51multi: save-resi-c264-51multi.asm save-resident.asm save-drive-
 	@$(ACME) $(ACMEOPTR) -l $@.tlb -o $@.bin $<
 	@$(call genr_includes, $@, saver-c264-51multi, "bitfire_save_*")
 	@cp $@.bin $@
+	@mkdir -p $(GENBINDIR)
 	@cp $@ $(GENBINDIR)/$@.prg
 
 clean:
@@ -91,3 +98,5 @@ clean:
 	       save-resi-c264-51multi save-resi-c264-51multi.bin save-resi-c264-51multi.tlb save-resi-c264-51multi.inc save-resi-c264-51multi.lst $(GENBINDIR)/save-resi-c264-51multi.prg \
 	       saver-*-acme.inc saver-*-c6510.inc saver-*-kickass.inc \
 	       $(GENINCDIR)/saver-*-acme.inc $(GENINCDIR)/saver-*-c6510.inc $(GENINCDIR)/saver-*-kickass.inc
+	if [ -d $(GENBINDIR) ]; then rmdir --ignore-fail-on-non-empty $(GENBINDIR); fi
+	if [ -d $(GENINCDIR) ]; then rmdir --ignore-fail-on-non-empty $(GENINCDIR); fi

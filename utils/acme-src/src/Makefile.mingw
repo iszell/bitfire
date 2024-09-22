@@ -4,7 +4,6 @@
 
 CFLAGS	= -O3 -Wall -Wstrict-prototypes
 LIBS		= -lm
-CC		= gcc
 RM		= rm
 
 #SRC		=
@@ -13,13 +12,24 @@ PROGS		= acme.exe
 BINDIR		= /usr/local/bin
 USERBIN		= $(HOME)/bin
 
+ifeq ($(OS),Windows_NT)
+	CC = gcc
+	STRIP = strip
+else
+	CC = x86_64-w64-mingw32-gcc
+	STRIP = x86_64-w64-mingw32-strip
+endif
+
+
+
 all: $(PROGS)
+
+
 
 acme.exe: acme.o alu.o cliargs.o cpu.o dynabuf.o encoding.o flow.o global.o input.o macro.o mnemo.o output.o platform.o pseudoopcodes.o section.o symbol.o tree.o typesystem.o _dos.o resource.res
 	$(CC) $(LIBS) $(CFLAGS) -o acme acme.o alu.o cliargs.o cpu.o dynabuf.o encoding.o flow.o global.o input.o macro.o mnemo.o output.o platform.o pseudoopcodes.o section.o symbol.o tree.o typesystem.o resource.res
-	strip acme.exe
-
-
+	$(STRIP) $(PROGS)
+	cp $(PROGS) ../..
 
 acme.o: config.h platform.h acme.h alu.h cpu.h dynabuf.h encoding.h flow.h global.h input.h macro.h mnemo.h output.h pseudoopcodes.h section.h symbol.h version.h acme.h _dos.h acme.c
 
@@ -62,12 +72,13 @@ typesystem.o: config.h global.h typesystem.h typesystem.c
 win/resource.rc: acme.c
 	cd win; sh setRelease.sh
 
-resource.res: win/resource.rc win/logo.ico
-	cd win; windres resource.rc -O coff -o ../resource.res
-	cp -f win/logo.ico .
+resource.res: win/resource.rc win/Logo.ico
+	cd win; x86_64-w64-mingw32-windres resource.rc -O coff -o ../resource.res
+	cp -f win/Logo.ico .
 
 clean:
-	-$(RM) -f *.o $(PROGS) *~ core resource.res logo.ico win/resource.rc
+	-$(RM) -f *.o $(PROGS) *~ core resource.res Logo.ico win/resource.rc ../../$(PROGS)
+
 
 
 install: all

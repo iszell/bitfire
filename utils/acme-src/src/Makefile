@@ -4,13 +4,6 @@ LIBS		= -lm
 CC		= gcc
 RM		= rm
 
-ifeq ($(OS),Windows_NT)
-	EXT = .exe
-else
-	EXT =
-endif
-
-
 #SRC		=
 
 PROGS		= acme
@@ -18,12 +11,20 @@ BINDIR		= /usr/local/bin
 USERBIN		= $(HOME)/bin
 OBJS		= acme.o alu.o cliargs.o cpu.o dynabuf.o encoding.o flow.o global.o input.o macro.o mnemo.o output.o platform.o pseudoopcodes.o section.o symbol.o tree.o typesystem.o
 
+ifeq ($(OS),Windows_NT)
+	PFEXT = .exe
+else
+	PFEXT = 
+endif
+
+
 all: $(PROGS)
 
 acme: $(OBJS)
 	$(CC) $(CFLAGS) -o acme $(OBJS) $(LIBS)
-	@strip acme$(EXT)
+	@strip acme$(PFEXT)
 	@cp $(PROGS) ../../
+
 
 acme.o: config.h platform.h acme.h alu.h cpu.h dynabuf.h encoding.h flow.h global.h input.h macro.h mnemo.h output.h pseudoopcodes.h section.h symbol.h version.h acme.h acme.c
 
@@ -62,7 +63,7 @@ tree.o: config.h dynabuf.h global.h symbol.h tree.h tree.c
 typesystem.o: config.h global.h typesystem.h typesystem.c
 
 clean:
-	-$(RM) -f *.o $(PROGS) *~ core ../../$(PROGS)
+	-$(RM) -f *.o $(PROGS) $(PROGS).exe *~ core ../../$(PROGS) ../../$(PROGS).exe
 
 
 install: all

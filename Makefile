@@ -1,8 +1,4 @@
-all: gendirs acme drivecodes residents sectorwriters drivecode-fsdv installers bitnax d64write1 test-loaddecomp test-savetest test-spdtst
-
-gendirs:
-	@mkdir gen-binaries
-	@mkdir gen-includes
+all: acme drivecodes residents sectorwriters drivecode-fsdv installers bitnax d64write1 test-loaddecomp test-savetest test-spdtst
 
 acme:
 	@$(MAKE) -C utils/acme-src/src
@@ -37,8 +33,12 @@ test-savetest:
 test-spdtst:
 	@$(MAKE) -C teststuffs/speedmeter
 
+winutils:
+	@#$(MAKE) -C utils/acme-src/src -f Makefile.mingw
+	@$(MAKE) -C utils/bitnax-src win
+	@$(MAKE) -C utils/d64write1-src win
+
 clean:
-	@rm -rf gen-includes gen-binaries
 	@$(MAKE) -C utils/acme-src/src clean
 	@$(MAKE) -C drive clean
 	@$(MAKE) -C resident clean
