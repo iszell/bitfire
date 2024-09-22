@@ -33,6 +33,11 @@ test-savetest:
 test-spdtst:
 	@$(MAKE) -C teststuffs/speedmeter
 
+winutils:
+	@#$(MAKE) -C utils/acme-src/src -f Makefile.mingw
+	@$(MAKE) -C utils/bitnax-src win
+	@$(MAKE) -C utils/d64write1-src win
+
 clean:
 	@$(MAKE) -C utils/acme-src/src clean
 	@$(MAKE) -C drive clean

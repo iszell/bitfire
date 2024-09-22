@@ -11,11 +11,18 @@ BINDIR		= /usr/local/bin
 USERBIN		= $(HOME)/bin
 OBJS		= acme.o alu.o cliargs.o cpu.o dynabuf.o encoding.o flow.o global.o input.o macro.o mnemo.o output.o platform.o pseudoopcodes.o section.o symbol.o tree.o typesystem.o
 
+ifeq ($(OS),Windows_NT)
+	PFEXT = .exe
+else
+	PFEXT = 
+endif
+
+
 all: $(PROGS)
 
 acme: $(OBJS)
 	$(CC) $(CFLAGS) -o acme $(OBJS) $(LIBS)
-	@strip acme
+	@strip acme$(PFEXT)
 	@cp $(PROGS) ../../
 
 
@@ -56,7 +63,7 @@ tree.o: config.h dynabuf.h global.h symbol.h tree.h tree.c
 typesystem.o: config.h global.h typesystem.h typesystem.c
 
 clean:
-	-$(RM) -f *.o $(PROGS) *~ core ../../$(PROGS)
+	-$(RM) -f *.o $(PROGS) $(PROGS).exe *~ core ../../$(PROGS) ../../$(PROGS).exe
 
 
 install: all
