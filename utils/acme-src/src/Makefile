@@ -15,7 +15,7 @@ all: $(PROGS)
 
 acme: $(OBJS)
 	$(CC) $(CFLAGS) -o acme $(OBJS) $(LIBS)
-	@strip acme.exe
+	@strip acme
 	@cp $(PROGS) ../../
 
 

@@ -157,12 +157,39 @@ static int d64_set_bam_entry(d64* d64, unsigned char track, unsigned char sector
     return 1;
 }
 
+static int d64_set_free_track_blocks(d64* d64, unsigned char track, int free) {
+    int offset;
+    if(track < D64_MIN_TRACK || track > d64->supported_tracks) return 0;
+    offset = track * 4;
+    if (track > 35) offset += 0x1c;
+    d64->bam[offset] = free;
+    return 1;
+}
+
 static int d64_get_free_track_blocks(d64* d64, unsigned char track) {
     int offset;
     if(track < D64_MIN_TRACK || track > d64->supported_tracks) return 0;
     offset = track * 4;
     if (track > 35) offset += 0x1c;
     return d64->bam[offset];
+}
+
+void d64_set_free(d64 *d64, int free) {
+    int track;
+    d64->free = 0;
+    for(track = D64_MIN_TRACK; track <= d64->supported_tracks; track ++) {
+        if(track != D64_DIR_TRACK) {
+            if (free > 255) {
+                d64->free += d64_set_free_track_blocks(d64, track, 255);
+                free -= 255;
+            } else if (free > 0) {
+                d64->free += d64_set_free_track_blocks(d64, track, free);
+                free = 0;
+            } else {
+                d64->free += d64_set_free_track_blocks(d64, track, 0);
+            }
+        }
+    }
 }
 
 void d64_get_free(d64 *d64) {
@@ -773,9 +800,11 @@ int main(int argc, char *argv[]) {
     int boot_track = 0;
     int lines = 0;
     int dir_art = 0;
+    int dir_art_pet = 0;
     int interleave = FILE_INTERLEAVE;
     int format = 0;
     int printbfdir = 0;
+    int free = -1;
 
     debug_level = 0;
     d64.supported_tracks = 35;
@@ -783,7 +812,9 @@ int main(int argc, char *argv[]) {
     c = 0;
     if (argc <= 1) {
         printf("\n=== d64write1 - .d64 handler utility for Bitfire loader\n");
-        printf("=== 230728: 'dirart first' version\n\n");
+        printf("=== 230728: 'dirart first' version\n");
+        printf("=== 240804: 'petscii dirart' mode by Siz\n");
+        printf("===         'blocks free' backported from newer d64write\n\n");
         printf("Usage: d64write1 (-c|-d) diskimage.d64 -h header -i id -s standard_format.prg -b bitfire_format.prg --boot bootloader.prg --side 1 -a 12 dirart.prg --interleave 5\n");
         printf("A multiple of files can be given as argument using -s or -b multiple times\n");
         printf("-c <d64-image>          Select image to write to and create/format it\n");
@@ -795,7 +826,9 @@ int main(int argc, char *argv[]) {
         printf("--bfdirsize <num>       Set bitfire directory size. Default: %d\n", BFDIR_SIZE_DEF);
         printf("--boot <file>           Writes a standard file into the dirtrack. The dirart is linked to that file.\n");
         printf("-a <num> <dirart.prg>   A dirart can be provided, it extracts the first 16 chars of <num> lines of a petscii screen plus a first line that is interpreted as header + id. Any header and id given through -h and -i will be ignored then.\n");
+        printf("-a <num> <dirart.pet>   A petscii dirart can be provided, see above\n");
         printf("--interleave <num>      Write files with given interleave (change that value also in config.inc). Default: %d\n", interleave);
+        printf("-f <num>                Set blocks free to num (Use only as last step!)\n");
         printf("--40                    Enable 40 track support\n");
         printf("-p                      Print BF directory\n");
         exit (0);
@@ -813,6 +846,15 @@ int main(int argc, char *argv[]) {
             if (argc - c > 1) d64_id = argv[++c];
             else {
                 fatal_message("missing value for option '%s'\n", argv[c]);
+            }
+        }
+        else if(!strcmp(argv[c], "-f")) {
+            if (argc - c > 1) free = strtoul(argv[++c], NULL, 10);
+            else {
+                fatal_message("missing value for option '%s'\n", argv[c]);
+            }
+            if (free < 0) {
+                fatal_message("value for %s must be in the range from 0 to 9180\n", argv[c]);
             }
         }
         else if(!strcmp(argv[c], "--interleave")) {
@@ -891,6 +933,10 @@ int main(int argc, char *argv[]) {
                 fatal_message("missing path for option '%s'\n", argv[c-1]);
             }
             dir_art = 1;
+            if(strcmp(".pet", strrchr(art_path, '.')) == 0) {
+                dir_art_pet = 1;
+                printf("PETSCII dirart provided\n");
+            }
         }
         else {
             fatal_message("unknown option '%s'\n", argv[c]);
@@ -925,7 +971,7 @@ int main(int argc, char *argv[]) {
         if(argc -c > 1) {
 			if(!strcmp(argv[c], "-ts")) {
 				print_ts = true;
-			} 
+			}
 			else if(!strcmp(argv[c], "-b")) {
                 printf("\"%s\" is saved to\n", argv[c+1]);
 		        d64_write_file(&d64, argv[++c], FILETYPE_BITFIRE, 1, interleave, side);
@@ -936,7 +982,7 @@ int main(int argc, char *argv[]) {
 
     // Small hack: create temporary dirart (allocate blocks for dirart on (primary) dirtrack)
     if(dir_art) {
-        art[0] = 0;		// Set direntry CBM name to ""
+	art[0] = 0;		// Set direntry CBM name to ""
 	j = lines;
 	while(j) {
 	    d64_create_direntry(&d64, art, 0, 255, interleave, FILETYPE_PRG, j);
@@ -960,20 +1006,41 @@ int main(int argc, char *argv[]) {
         if(file = fopen(art_path, "rb+"), !file) {
             fatal_message("unable to open '%s'\n", art_path);
         }
+        int w = 40-1;            // saved screen mem width = 40 char
+        if(dir_art_pet) {
+            // width
+            w = fgetc(file)-1;
+        } else {
+            // load address low byte
+            c = fgetc(file);
+        }
+        // height or load address high byte
         c = fgetc(file);
-        c = fgetc(file);
+        if(dir_art_pet) {
+            // border color
+            c = fgetc(file);
+            // background color
+            c = fgetc(file);
+            // charset
+            c = fgetc(file);
+        }
         j = 0;
         head = 0;
 	//XXX TODO parse first line as header/id
 	//
         while((c = fgetc(file)) != EOF && lines) {
-            if (j < 39) art[j++] = c;
+            if (j < w) art[j++] = c;
             else {
+                art[j++] = c;
                 art[j] = 0;
                 if (head == 0) {
                     screen2petscii(art);
                     memcpy(header, art, 16);
-                    memcpy(id, art+17, 5);
+                    if(!dir_art_pet || w>=22) {
+                        memcpy(id, art+17, 5);
+                    } else {
+                        memcpy(id, d64_id, 5);
+                    }
                     d64_set_header(&d64, header, id);
                     head++;
                 } else {
@@ -996,6 +1063,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (free >= 0) d64_set_free(&d64, free);
     d64_display_bam(&d64);
     d64_write_bam(&d64);
 
