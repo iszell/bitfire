@@ -294,7 +294,8 @@ turn_disc	lda	filenum
 		cmp	#$00				;"00, OK,00,00"?
 		beq	+
 		+break	vcpu_syscall_exit_remain	;If not OK, exit
-+
++		sta	filenum				;(### ERROR in beta2-: missing 'filenum' init after image change)
+
 		;+ldzph	>fsd_openchn_str		;(String in zeropage, ZPH value 'by design' good)
 		ldy	#<fsd_openchn_str
 		ldx	#fsd_openchn_strl		;"#", one character
